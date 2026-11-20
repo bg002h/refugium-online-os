@@ -61,6 +61,7 @@ for essential in bin/sh usr/bin/python3 usr/bin/tor usr/sbin/nft usr/sbin/ip lib
 done
 desktop_fs=${5:-}
 if [[ -n $desktop_fs ]]; then
+    echo 'plocate:x:922:ro-operator' >> "$r/etc/group"
     mkdir -p "$r/usr/lib/refugium-online/desktop"
     cp -a "$repo/image/desktop/session/." "$r/usr/lib/refugium-online/desktop/"
     touch "$r/etc/refugium-online/desktop"

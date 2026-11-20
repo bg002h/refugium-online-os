@@ -12,6 +12,8 @@ scripts/run .work/refugium-online-os.img .work/instance --gui
 
 The launcher creates private firmware variables and two persistent sparse disks. The signet disk is 8 GiB. The mainnet disk defaults to 1536 GiB of logical capacity and grows as blocks are stored. An unpruned archive needs real backing space for the chain and future growth. For short VM tests, `--mainnet-size-gib 8` sets the size of a **new** disk. Existing disks retain their contents and size. All three nodes start at genesis on an empty instance. The desktop opens Node status in a terminal. It shows chain heights, block times, explorer index readiness, satellite reception, free disk space and outbound policy. Press Enter for the command console and type `screen` to return. The serial console is also available in headless mode.
 
+In Terminal, use `locate mr-gui` or `locate pubkeys` to find files by name. The desktop builds a private plocate index when it starts. After creating or moving a file, run `updatedb` to refresh it as the operator.
+
 The graphical VM uses a 1920 × 1080 guest desktop. The viewer scales it to fit its window, and mr-gui opens maximized above the dock.
 
 For a test session with two-way text copy and paste, add `--clipboard` to the graphical launch command. For example, `scripts/run .work/refugium-online-os.img .work/instance --sealed --gui --clipboard` starts with the Internet adapter disconnected. The clipboard uses a local virtual serial port. While sharing is on, guest apps can read text copied on the host, and guest text copied to the host can enter its clipboard history. Sharing defaults to off on each launch. In graphical apps use Ctrl+C and Ctrl+V. In the guest Terminal, select text and use Ctrl+Shift+C to copy or Ctrl+Shift+V to paste.

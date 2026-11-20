@@ -56,6 +56,9 @@ mkdir -p "$r/usr/share/applications"; cp "$apps"/*.desktop "$r/usr/share/applica
 # Packages normally generate these cache and alternative paths during post-installation.
 mkdir -p "$r/etc/alternatives"
 ln -sf /usr/bin/xterm "$r/usr/bin/x-terminal-emulator"
+ln -s plocate "$r/usr/bin/locate"
+ln -s ../sbin/updatedb.plocate "$r/usr/bin/updatedb"
+install -m0644 "$repo/image/desktop/updatedb.conf" "$r/etc/updatedb.conf"
 mkdir -p "$r/etc/fonts/conf.d"; for f in "$r/usr/share/fontconfig/conf.avail/"*.conf; do
     [[ -e $f ]] || continue
     case "${f##*/}" in 10-hinting-slight.conf|10-scale-bitmap-fonts.conf|10-sub-pixel-rgb.conf|11-lcdfilter-default.conf|20-unhint-small-dejavu*.conf|30-metric-aliases.conf|40-nonlatin.conf|45-generic.conf|45-latin.conf|49-sansserif.conf|50-user.conf|51-local.conf|60-generic.conf|60-latin.conf|65-fonts-persian.conf|65-nonlatin.conf|90-synthetic.conf)

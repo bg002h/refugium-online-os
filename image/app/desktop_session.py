@@ -1,4 +1,5 @@
 """Start the graphical seat without a display manager or networked X server."""
+import grp
 import os
 from pathlib import Path
 import secrets
@@ -34,7 +35,7 @@ def main():
     home = Path('/home')/'operator'
     home.mkdir(parents=True, exist_ok=True)
     runtime = Path('/run/desktop-user')
-    for folder in (home,runtime,home/'.bitcoin',home/'.bitcoin/signet'):
+    for folder in (home,runtime,home/'.bitcoin',home/'.bitcoin/signet',Path('/var/lib/plocate')):
         folder.mkdir(exist_ok=True)
         os.chown(folder,OPERATOR,OPERATOR)
         os.chmod(folder,0o700)
@@ -78,7 +79,7 @@ def main():
                 break
             time.sleep(.1)
         subprocess.run(['/usr/bin/dbus-run-session','--',str(SESSION/'session')], user=OPERATOR,group=OPERATOR,
-                       extra_groups=[BITCOIN],cwd=home,env=env,check=True)
+                       extra_groups=[BITCOIN,grp.getgrnam('plocate').gr_gid],cwd=home,env=env,check=True)
     finally:
         x.terminate()
         x.wait()

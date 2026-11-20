@@ -17,6 +17,8 @@ if [ -n "${REFUGIUM_CLIPBOARD_PORT:-}" ]; then
 fi
 xsetroot -solid '#253646'
 xset s off
+# The operator's filename index lives in the writable /var overlay for this boot.
+updatedb || echo 'Could not build the locate index. Run updatedb to retry.' >&2
 tint2 -c /usr/lib/refugium-online/desktop/tint2rc &
 /usr/lib/refugium-online/desktop/open status &
 wait "$wm"
