@@ -47,6 +47,7 @@ def main():
     parser.add_argument('state', type=Path, help='private persistent instance directory')
     parser.add_argument('--sealed', action='store_true', help='omit the network adapter for this boot')
     parser.add_argument('--gui', action='store_true', help='show the guest console in a window')
+    parser.add_argument('--clipboard', action='store_true', help='share text both ways with the host desktop for this GUI session')
     parser.add_argument('--serial-socket', type=Path, help='bind a local Unix socket for console automation')
     parser.add_argument('--capture', type=Path, help='save adapter frames to a new local pcap')
     parser.add_argument('--mainnet-size-gib', type=int, default=1536,
@@ -55,6 +56,8 @@ def main():
     parser.add_argument('--firmware-code', type=Path, default=code)
     parser.add_argument('--firmware-vars', type=Path, default=template)
     args = parser.parse_args()
+    if args.clipboard and not args.gui:
+        parser.error('--clipboard requires --gui')
     if args.mainnet_size_gib < 8:
         parser.error('Use at least 8 GiB for a new mainnet disk')
     image = args.image.resolve(strict=True)
@@ -104,6 +107,10 @@ def main():
         if args.gui:
             cmd += ['-device','virtio-vga,xres=1920,yres=1080','-device','usb-kbd',
                     '-device','usb-tablet','-display','gtk,zoom-to-fit=on']
+            if args.clipboard:
+                cmd[-1] += ',clipboard=on'
+                cmd += ['-chardev','qemu-vdagent,id=clip,clipboard=on,mouse=off',
+                        '-device','virtserialport,chardev=clip,name=com.redhat.spice.0']
         else:
             cmd += ['-display','none']
         if args.serial_socket:

@@ -7,6 +7,7 @@ case "$1" in
         cd "$HOME"
         export SHELL=/bin/bash
         exec xterm -name refugium-terminal -title 'Terminal' -fa 'DejaVu Sans Mono' -fs 12 \
+            -xrm 'XTerm*VT100.Translations: #override \n Ctrl Shift <Key>C: copy-selection(CLIPBOARD) \n Ctrl Shift <Key>V: insert-selection(CLIPBOARD)' \
             -bg '#101923' -fg '#e6ebef' -geometry 90x28 -e "$SHELL" -i
         ;;
     esplora) exec "$apps/firefox/firefox" --new-window http://127.0.0.1:8080/ ;;

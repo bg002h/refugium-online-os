@@ -14,6 +14,8 @@ The launcher creates private firmware variables and two persistent sparse disks.
 
 The graphical VM uses a 1920 × 1080 guest desktop. The viewer scales it to fit its window, and mr-gui opens maximized above the dock.
 
+For a test session with two-way text copy and paste, add `--clipboard` to the graphical launch command. For example, `scripts/run .work/refugium-online-os.img .work/instance --sealed --gui --clipboard` starts with the Internet adapter disconnected. The clipboard uses a local virtual serial port. While sharing is on, guest apps can read text copied on the host, and guest text copied to the host can enter its clipboard history. Sharing defaults to off on each launch. In graphical apps use Ctrl+C and Ctrl+V. In the guest Terminal, select text and use Ctrl+Shift+C to copy or Ctrl+Shift+V to paste.
+
 The bottom dock opens **Node status**, **Esplora**, **mempool.space**, **mr-gui** (the blue Bitcoin shield), **Test public keys**, and **Terminal**, in that order. Terminal opens an interactive Bash shell in the operator’s home directory. Both explorers run locally against the mainnet archive and share one electrs index. Firefox shows its welcome dialog on first use in a fresh session. The local pages open while the VM is sealed. Historical block and transaction lookups require the node to finish initial sync and electrs to index the blocks. The archive runs in blocks-only mode, so the live fee and mempool displays have limited data. Mining statistics, fiat prices and Lightning are disabled in this preview.
 
 mr-gui reads the local signet cookie. The nodes have their wallets disabled. The public-keys launcher opens the complete build-supplied test fixture at `~/pubkeys` in Mousepad. Select and copy text there, then paste into another guest window. The live home directory is temporary.
@@ -54,7 +56,7 @@ The operator can run `ping -V` in Terminal to check the installed version. With 
 
 Only Tor can open a public IPv4 TCP connection, on port 443. The virtual gateway also needs local ARP. The two Core processes have separate private proxies. Signet can request nine pinned peers on port 38333. The mainnet archive can request six pinned onion peers on port 8333. A separate private socket takes the explorer only to `blockstream.info:443`. HTTPS verifies the hostname and certificate, and the client has three operations on the signet API. The guest browser can reach the two local explorer frontends. Its firewall policy denies direct Internet and Tor access. Bitcoin RPC listens on loopback, the nodes disable wallets, and the guest has no DNS client service. Public signet peer availability and Tor exit access can change. Operator time comes from the VM clock.
 
-The host, guest kernel and packaged services are trusted. Application allowlists constrain destinations and operations. They do not inspect every possible use of data inside permitted Bitcoin messages. Use the host seal or start without an adapter whenever the requirement is zero transmission. The [spec](design/spec.md) records the trust boundary and upstream protocol references.
+The host, guest kernel and packaged services are trusted. Application allowlists constrain destinations and operations. They do not inspect every possible use of data inside permitted Bitcoin messages. Use the host seal or start without an adapter to stop Internet transmission. Omit `--clipboard` to keep clipboard text within each desktop. The [spec](design/spec.md) records the trust boundary and upstream protocol references.
 
 ## Build
 

@@ -56,6 +56,13 @@ def main():
            'XDG_SESSION_TYPE':'x11','XDG_CURRENT_DESKTOP':'Openbox','USER':'ro-operator','LOGNAME':'ro-operator',
            'LIBGL_ALWAYS_SOFTWARE':'1','SLINT_BACKEND':'winit-software','GDK_BACKEND':'x11',
            'NO_AT_BRIDGE':'1','GSETTINGS_BACKEND':'memory','PYTHONDONTWRITEBYTECODE':'1'}
+    for port in Path('/sys/class/virtio-ports').glob('vport*'):
+        if (port/'name').read_text().strip() == 'com.redhat.spice.0':
+            device = Path('/dev')/port.name
+            os.chown(device, 0, OPERATOR)
+            os.chmod(device, 0o660)
+            env['REFUGIUM_CLIPBOARD_PORT'] = str(device)
+            break
     cache = Path('/run/desktop-pixbuf-loaders')
     with cache.open('wb') as output:
         subprocess.run(['/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders'], stdout=output, check=True)

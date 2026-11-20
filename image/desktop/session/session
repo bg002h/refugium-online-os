@@ -9,6 +9,12 @@ sed 's|<applications>|&<application class="mr-gui" type="normal"><maximized>yes<
     /etc/xdg/openbox/rc.xml > "$config"
 openbox --config-file "$config" &
 wm=$!
+if [ -n "${REFUGIUM_CLIPBOARD_PORT:-}" ]; then
+    socket="$XDG_RUNTIME_DIR/spice-vdagent.sock"
+    # Single local X seat. The virtual agent only carries text.
+    /usr/sbin/spice-vdagentd -x -X -f -u /dev/null -s "$REFUGIUM_CLIPBOARD_PORT" -S "$socket" &
+    /usr/bin/spice-vdagent -x -s "$REFUGIUM_CLIPBOARD_PORT" -S "$socket" &
+fi
 xsetroot -solid '#253646'
 xset s off
 tint2 -c /usr/lib/refugium-online/desktop/tint2rc &
