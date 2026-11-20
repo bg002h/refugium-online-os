@@ -21,3 +21,5 @@ With the optional host clipboard enabled on a sealed graphical boot, a private h
 On a sealed desktop boot, the dock Terminal found the public test fixture, the wallet executable on the `/opt` bind mount and the signet configuration by name. The operator created a file in its home, ran `updatedb` without elevated privileges and found the new file with `locate`. A query for a fixture inside a root-only directory returned zero matches and exit status 1.
 
 The dock renders all six launchers at 48 × 48 guest pixels. Each composited icon matched its corresponding rectangle in the 1920 × 1080 guest framebuffer pixel for pixel. The desktop work area remained 1920 × 1018. Clicking Terminal and the wallet shield opened their respective applications.
+
+The 64 × 64 comparison build copies three native 64-pixel Yaru PNGs for Node status, Test public keys and Terminal. Esplora and mempool.space use their respective upstream vector logos. The wallet uses the 128-pixel Refugium shield. A separate sealed guest booted with its own data disks. Each launcher matched the composited 64 × 64 source image at every pixel in the guest framebuffer.
