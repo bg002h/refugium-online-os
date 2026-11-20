@@ -69,7 +69,7 @@ render_icon() {
 render_icon status "$apps/node-status.svg"
 render_icon esplora "$apps/esplora/img/icons/Bitcoin-menu-logo.svg"
 render_icon mempool "$apps/mempool/resources/bimi.svg"
-render_icon wallet "$apps/refugium-shield.png"
+render_icon wallet "$apps/refugium-shield.svg"
 # XTerm's iconHint takes an XPM pixmap. Derive it from the same icon as the launcher.
 if command -v magick >/dev/null; then imagemagick=magick; else imagemagick=convert; fi
 for icon in status refugium-terminal; do
