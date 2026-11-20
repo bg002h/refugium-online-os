@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Build the read-only desktop partition from the locked inputs and explicitly supplied fixtures.
+set -euo pipefail
+repo=$(cd "$(dirname "$0")/.." && pwd)
+inputs=$(realpath "${1:?pass the desktop input directory}")
+wallet=$(realpath "${2:?pass a Noble-compatible mr-gui executable}")
+keys=$(realpath "${3:?pass the test pubkeys file}")
+output=$(realpath -m "${4:?pass a new payload path}")
+[[ ! -e $output && ! -L $output ]] || { echo 'Choose a new payload path.' >&2; exit 2; }
+mkdir -p "$(dirname "$output")"
+work=$(mktemp -d "$(dirname "$output")/payload.XXXXXXXX")
+r="$work/root"; apps="$r/opt/refugium-desktop"
+mkdir -p "$r"/{etc,var,usr/lib,usr/bin,usr/sbin,usr/share} "$apps"/{bin,lib,esplora,mempool,backend,icons}
+# Honor Noble's merged-/usr links when unpacking Debian archives.
+for name in bin sbin lib lib64; do mkdir -p "$r/usr/$name"; ln -s "usr/$name" "$r/$name"; done
+(cd "$inputs/debs" && awk '{print $1, $2}' "$repo/image/desktop/packages.lock" | sha256sum --quiet -c -)
+(cd "$inputs" && awk '{print $1, $2}' "$repo/image/desktop/assets.lock" | sha256sum --quiet -c -)
+while read -r digest name url; do
+    deb="$inputs/debs/$name"; member=$(ar t "$deb" | grep '^data.tar')
+    case "$member" in *.zst) dec=zstd;; *.xz) dec=xz;; *.gz) dec=gzip;; *) exit 1;; esac
+    ar p "$deb" "$member" | "$dec" -dc | tar --keep-directory-symlink --no-same-owner -xf - -C "$r"
+done < "$repo/image/desktop/packages.lock"
+tar -xf "$inputs/firefox-153.7.0esr.tar.xz" -C "$apps"
+tar -xOf "$inputs/node-v26.12.1-linux-x64.tar.xz" node-v26.12.1-linux-x64/bin/node > "$apps/bin/node"
+tar -xOzf "$inputs/release/electrs-2.tgz" usr/bin/electrs > "$apps/bin/electrs"
+chmod 0755 "$apps/bin"/{node,electrs}
+tar -xzf "$inputs/release/electrs-1.tgz" -C "$apps/lib" --strip-components=3 --wildcards 'usr/lib/x86_64-linux-gnu/librocksdb.so.7*'
+tar -xzf "$inputs/release/esplora-8.tgz" -C "$apps/esplora" --strip-components=4 srv/explorer/static/bitcoin-mainnet
+tar -xzf "$inputs/frontend-16.tgz" -C "$apps/mempool" --strip-components=4 var/www/mempool/browser/resources var/www/mempool/browser/en-US
+tar -xzf "$inputs/backend-8.tgz" -C "$apps/backend" --strip-components=2 backend/package
+python3 -B - "$apps" <<'PY'
+from pathlib import Path
+import sys
+root=Path(sys.argv[1])
+for page in (root/'esplora/index.html', root/'mempool/en-US/index.html'):
+ html = page.read_text()
+ assert html.count('</body>') == 1
+ page.write_text(html.replace('</body>', '<script src="/refugium-index-status.js"></script></body>'))
+p=root/'backend/index.js';s=p.read_text();old='this.server.listen(config_1.default.MEMPOOL.HTTP_PORT, () => {'
+assert s.count(old)==1
+p.write_text(s.replace(old, "this.server.listen(config_1.default.MEMPOOL.HTTP_PORT, '127.0.0.1', () => {"))
+p=root/'mempool/resources/config.js'
+s=p.read_text()
+for key,value in {'MINING_DASHBOARD':'false','ACCELERATOR_BUTTON':'false','HISTORICAL_PRICE':'false','SERVICES_API':"'/api/v1/services'",'MEMPOOL_WEBSITE_URL':"'http://127.0.0.1:8081'"}.items():
+ import re
+ s,n=re.subn(r'(window\.__env\.'+key+r' = )[^;]+;',lambda m:m[1]+value+';',s)
+ assert n==1,key
+p.write_text(s)
+PY
+install -m0755 "$wallet" "$apps/bin/mr-gui"
+install -m0644 "$keys" "$apps/pubkeys"
+cp -r "$repo/image/desktop/session/." "$apps/"
+# Render the launchers at their final guest pixel size so tint2 can draw them 1:1.
+icon_size=$(awk '$1 == "launcher_icon_size" {print $3}' "$apps/tint2rc")
+# The public-key editor uses a native Yaru icon. Both Buuf dock icons are
+# pinned desktop inputs and also supply the corresponding XTerm window icons.
+yaru="$work/yaru"
+icons=./usr/share/icons/Yaru/32x32@2x/apps
+mkdir -p "$yaru" "$r/usr/share/doc/yaru-theme-icon" "$r/usr/share/doc/buuf-icons-for-plasma"
+ar p "$inputs/yaru-theme-icon_24.04.2-0ubuntu1_all.deb" data.tar.zst | zstd -dc | \
+    tar -xC "$yaru" "$icons/accessories-text-editor.png" ./usr/share/doc/yaru-theme-icon/copyright
+install -m0644 "$yaru/usr/share/doc/yaru-theme-icon/copyright" "$r/usr/share/doc/yaru-theme-icon/"
+install -m0644 "$yaru/$icons/accessories-text-editor.png" "$apps/icons/pubkeys.png"
+install -m0644 "$repo/image/desktop/buuf-credits.txt" "$r/usr/share/doc/buuf-icons-for-plasma/copyright"
+install -m0644 "$inputs/buuf/utilities-system-monitor.png" "$apps/icons/status.png"
+install -m0644 "$inputs/buuf/utilities-terminal.png" "$apps/icons/refugium-terminal.png"
+render_icon() {
+    vips thumbnail "$2" "$apps/icons/$1.png[strip]" "$icon_size"
+}
+render_icon esplora "$apps/blockstream-mark.svg"
+render_icon mempool "$apps/mempool/resources/bimi.svg"
+render_icon wallet "$apps/refugium-shield.svg"
+# XTerm's iconHint takes an XPM pixmap. Derive it from the same icon as the launcher.
+if command -v magick >/dev/null; then imagemagick=magick; else imagemagick=convert; fi
+for icon in status refugium-terminal; do
+    "$imagemagick" "$apps/icons/$icon.png" -channel A -threshold 50% +channel \
+        -colors 128 "$apps/icons/$icon.xpm"
+done
+mkdir -p "$apps/firefox/distribution"
+cp "$apps/firefox-policy.json" "$apps/firefox/distribution/policies.json"
+mkdir -p "$r/usr/share/applications"; cp "$apps"/*.desktop "$r/usr/share/applications/"
+# Packages normally generate these cache and alternative paths during post-installation.
+mkdir -p "$r/etc/alternatives"
+ln -sf /usr/bin/xterm "$r/usr/bin/x-terminal-emulator"
+ln -s plocate "$r/usr/bin/locate"
+ln -s ../sbin/updatedb.plocate "$r/usr/bin/updatedb"
+install -m0644 "$repo/image/desktop/updatedb.conf" "$r/etc/updatedb.conf"
+mkdir -p "$r/etc/fonts/conf.d"; for f in "$r/usr/share/fontconfig/conf.avail/"*.conf; do
+    [[ -e $f ]] || continue
+    case "${f##*/}" in 10-hinting-slight.conf|10-scale-bitmap-fonts.conf|10-sub-pixel-rgb.conf|11-lcdfilter-default.conf|20-unhint-small-dejavu*.conf|30-metric-aliases.conf|40-nonlatin.conf|45-generic.conf|45-latin.conf|49-sansserif.conf|50-user.conf|51-local.conf|60-generic.conf|60-latin.conf|65-fonts-persian.conf|65-nonlatin.conf|90-synthetic.conf)
+      ln -sf "/usr/share/fontconfig/conf.avail/${f##*/}" "$r/etc/fonts/conf.d/${f##*/}";; esac
+done
+glib-compile-schemas "$r/usr/share/glib-2.0/schemas"
+update-mime-database "$r/usr/share/mime"
+mib=$(( $(du -sm "$r" | cut -f1) * 13 / 10 + 192 ))
+truncate -s "${mib}M" "$work/desktop.ext4"
+mke2fs -q -t ext4 -m0 -L RO_DESKTOP -E root_owner=0:0 -d "$r" "$work/desktop.ext4"
+ln "$work/desktop.ext4" "$output"

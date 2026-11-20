@@ -1,0 +1,10 @@
+7d2eb92ca3a7b2a83de092eb9b94c853980214de2fbfdccb2ac39d61c593c5a5 firefox-153.7.0esr.tar.xz https://archive.mozilla.org/pub/firefox/releases/153.7.0esr/linux-x86_64/en-US/firefox-153.7.0esr.tar.xz
+6170b2d474e1c626f43cff3adc118df9fe3b573258a4fc3d850c8dbc6b079bbd node-v26.12.1-linux-x64.tar.xz https://nodejs.org/dist/v26.12.1/node-v26.12.1-linux-x64.tar.xz
+845e634687178a4458997d5be596ede879a776201707a0b06d230c1a38a0fc7c backend-8.tgz docker:mempool/backend@sha256:845e634687178a4458997d5be596ede879a776201707a0b06d230c1a38a0fc7c
+82d1d7d2826fa609dcbe7cb8f3b44c2e1e474c415ce92dafa36ff3c07dc4e49b frontend-16.tgz docker:mempool/frontend@sha256:82d1d7d2826fa609dcbe7cb8f3b44c2e1e474c415ce92dafa36ff3c07dc4e49b
+11aa69f7ab0aebe0c89cd439fd4f9f5d91c6b0be290d930b00972593956ecce2 release/electrs-1.tgz docker:mempool/electrs@sha256:11aa69f7ab0aebe0c89cd439fd4f9f5d91c6b0be290d930b00972593956ecce2
+a1c7b3d25a86c86dd9821e3e7cd3a0e956be7fae6a4af9ba7361dc85fef5cfbc release/electrs-2.tgz docker:mempool/electrs@sha256:a1c7b3d25a86c86dd9821e3e7cd3a0e956be7fae6a4af9ba7361dc85fef5cfbc
+bc60af9e0b6419930993c643e92916a311320109f6d6ac2f9fa44529b97828ca release/esplora-8.tgz docker:blockstream/esplora@sha256:bc60af9e0b6419930993c643e92916a311320109f6d6ac2f9fa44529b97828ca
+16d957e51d9699105551d50f47fb788e33d91f706ae7cdfcb3e36386c2d8a138 yaru-theme-icon_24.04.2-0ubuntu1_all.deb https://snapshot.ubuntu.com/ubuntu/20261118T000000Z/pool/main/y/yaru-theme/yaru-theme-icon_24.04.2-0ubuntu1_all.deb
+2095a4892f545d560741680ef4668f1b6b24bc147ae1d2edc99b1c17fbc29ada buuf/utilities-system-monitor.png https://www.opencode.net/phob1an/buuf-icons-for-plasma/-/raw/9bd0a9e2f50d0abc3089751ef60e3a1a6f5c6b35/64x64/apps/utilities-system-monitor.png
+f3d25f7af54f41a027a8678179279b43dd64262cac49a6b4c70ecff4340fc1e7 buuf/utilities-terminal.png https://www.opencode.net/phob1an/buuf-icons-for-plasma/-/raw/9bd0a9e2f50d0abc3089751ef60e3a1a6f5c6b35/64x64/apps/utilities-terminal.png

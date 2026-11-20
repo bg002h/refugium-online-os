@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Build the receive daemon with the Ubuntu Noble ABI in an offline build namespace.
+set -euo pipefail
+repo=$(cd "$(dirname "$0")/.." && pwd)
+inputs=$(realpath "${1:-$repo/.work/inputs}")
+output=$(realpath -m "${2:-$inputs/bitcoin-satellite}")
+[[ ! -e $output && ! -L $output ]] || { echo 'Choose a new receiver output.' >&2; exit 2; }
+mkdir -p "$(dirname "$output")"
+work=$(mktemp -d "$(dirname "$output")/receiver.XXXXXXXX")
+root="$work/root"
+mkdir -p "$root/build" "$work/src"
+(cd "$inputs" && sha256sum --quiet -c <(grep -E ' (ubuntu-base|bitcoinsatellite-)' "$repo/image/inputs.sha256"))
+(cd "$inputs/receiver-tools" && awk '{print $1, $2}' "$repo/image/satellite/build-packages.lock" | sha256sum --quiet -c -)
+tar --no-same-owner -xf "$inputs/ubuntu-base-24.04.5-base-amd64.tar.gz" -C "$root"
+while read -r digest name url; do
+    deb="$inputs/receiver-tools/$name"
+    member=$(ar t "$deb" | grep '^data.tar')
+    case "$member" in
+        *.zst) decoder=zstd ;;
+        *.xz) decoder=xz ;;
+        *.gz) decoder=gzip ;;
+        *) exit 1 ;;
+    esac
+    ar p "$deb" "$member" | "$decoder" -dc | tar --no-same-owner --keep-directory-symlink -xf - -C "$root"
+done < "$repo/image/satellite/build-packages.lock"
+for alt in 'aclocal aclocal-1.16' 'automake automake-1.16' 'cc gcc' 'c++ g++' 'pkg-config pkgconf'; do
+    read -r name target <<< "$alt"
+    ln -sf "$target" "$root/usr/bin/$name"
+done
+tar --no-same-owner -xf "$inputs/bitcoinsatellite-v25.0-satellite0.2.4.tar.gz" -C "$work/src" --strip-components=1
+patch --batch --fuzz=0 -p1 -d "$work/src" < "$repo/image/satellite/ipv4-multicast.patch"
+bwrap --unshare-user --uid 0 --gid 0 --unshare-net --ro-bind "$root" / --dev /dev --proc /proc \
+    --bind "$work/src" /build --tmpfs /tmp --chdir /build --clearenv --setenv LC_ALL C --setenv HOME /tmp \
+    --setenv PATH /usr/bin:/bin --setenv JOBS "${JOBS:-6}" /bin/sh -eu -c '
+    ./autogen.sh
+    ./configure --without-gui --disable-wallet --disable-tests --disable-bench --disable-zmq --without-miniupnpc \
+        --without-natpmp --disable-man --with-utils=no --with-libs=no CXXFLAGS="-O2 -g0" CFLAGS="-O2 -g0"
+    make -C src -j"$JOBS" bitcoind
+    strip -o /build/bitcoin-satellite /build/src/bitcoind'
+ln "$work/src/bitcoin-satellite" "$output"

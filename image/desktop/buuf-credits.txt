@@ -1,0 +1,12 @@
+Based on icons by Paul Davey aka Mattahan. All rights reserved.
+The Buuf Icons for Plasma project also credits Shirakawasuna for modifications.
+Project maintainer: phob1an.
+
+The two 64-pixel PNGs come from revision 9bd0a9e2f50d0abc3089751ef60e3a1a6f5c6b35.
+The desktop displays the original PNGs and derives XPM copies for XTerm.
+
+The original artist permits alteration and redistribution with credit and requires
+permission for commercial use. The Plasma port also links to CC BY-SA 3.0 AU.
+Consult both upstream notices when distributing a built image.
+https://www.opencode.net/phob1an/buuf-icons-for-plasma/-/blob/9bd0a9e2f50d0abc3089751ef60e3a1a6f5c6b35/Buuf%20/Buuf.htm
+https://www.opencode.net/phob1an/buuf-icons-for-plasma/-/blob/9bd0a9e2f50d0abc3089751ef60e3a1a6f5c6b35/licenses

@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""Fetch the locked amd64 desktop packages and upstream application files."""
+import argparse
+from concurrent.futures import ThreadPoolExecutor
+import hashlib
+import json
+from pathlib import Path
+import shutil
+import tempfile
+from urllib.request import Request, urlopen
+
+repo = Path(__file__).resolve().parents[1]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('output', nargs='?', type=Path, default=repo/'.work/desktop/inputs')
+args = parser.parse_args()
+
+
+def fetch(row):
+    digest, name, source, directory = row
+    target = directory/name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    def matches(path):
+        with path.open('rb') as handle:
+            return hashlib.file_digest(handle, 'sha256').hexdigest() == digest
+    if target.is_file() and matches(target):
+        return
+    urls = [source]
+    headers = {}
+    if source.startswith('docker:'):
+        image, blob = source[7:].split('@')
+        endpoint = 'https://auth.docker.io/token?service=registry.docker.io&scope=repository:'+image+':pull'
+        with urlopen(endpoint, timeout=30) as response:
+            headers['Authorization'] = 'Bearer '+json.load(response)['token']
+        urls = ['https://registry-1.docker.io/v2/'+image+'/blobs/'+blob]
+    elif source.startswith('https://snapshot.ubuntu.com/') and '/pool/' in source:
+        urls.insert(0, 'https://archive.ubuntu.com/ubuntu/pool/'+source.split('/pool/',1)[1])
+    for attempt in range(4):
+        try:
+            with tempfile.NamedTemporaryFile(dir=target.parent, delete=False) as out:
+                pending = Path(out.name)
+                with urlopen(Request(urls[attempt % len(urls)], headers=headers), timeout=90) as response:
+                    shutil.copyfileobj(response, out)
+            if not matches(pending):
+                raise ValueError('Digest mismatch for '+name)
+            pending.replace(target)
+            return
+        except (OSError, ValueError):
+            pending.unlink(missing_ok=True)
+            if attempt == 3:
+                raise
+
+
+jobs = []
+for name, directory in [('packages',args.output/'debs'),('assets',args.output)]:
+    for line in (repo/'image/desktop'/(name+'.lock')).read_text().splitlines():
+        jobs.append((*line.split(), directory))
+with ThreadPoolExecutor(max_workers=12) as pool:
+    list(pool.map(fetch,jobs))
+print(f'Verified {len(jobs)} desktop inputs')

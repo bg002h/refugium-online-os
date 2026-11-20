@@ -15,7 +15,16 @@ core=bitcoin-31.1-x86_64-linux-gnu.tar.gz
 fetch "$base" "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/$base"
 fetch "$core" "https://bitcoincore.org/bin/bitcoin-core-31.1/$core"
 fetch linux-6.12.118.tar.xz https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.118.tar.xz
+fetch bitcoinsatellite-v25.0-satellite0.2.4.tar.gz https://codeload.github.com/Blockstream/bitcoinsatellite/tar.gz/refs/tags/v25.0-satellite0.2.4
 sha256sum --quiet -c "$repo/image/inputs.sha256"
+for pair in 'receiver-tools build' 'satellite runtime'; do
+    read -r dest lock <<< "$pair"
+    mkdir -p "$dest"
+    while read -r digest name url; do
+        fetch "$dest/$name" "$url"
+        printf '%s  %s\n' "$digest" "$dest/$name" | sha256sum --quiet -c -
+    done < "$repo/image/satellite/$lock-packages.lock"
+done
 if (cd debs && sha256sum --quiet -c "$repo/image/packages.sha256") 2>/dev/null; then exit 0; fi
 aptroot=$(mktemp -d "$out/apt.XXXXXXXX")
 tar --no-same-owner -xf "$base" -C "$aptroot"
@@ -31,6 +40,6 @@ bwrap --unshare-user --uid 0 --gid 0 --bind "$aptroot" / --proc /proc --dev /dev
   --ro-bind /etc/resolv.conf /etc/resolv.conf --ro-bind /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt \
   --setenv HOME /root --setenv LC_ALL C --chdir / -- sh -ec '
     apt-get -o APT::Sandbox::User=root -o Acquire::Check-Valid-Until=false update
-    apt-get -o APT::Sandbox::User=root --download-only --no-install-recommends -y install tor nftables iproute2 python3-minimal python3 curl ca-certificates systemd-boot-efi e2fsprogs util-linux'
+    apt-get -o APT::Sandbox::User=root --download-only --no-install-recommends -y install tor nftables iproute2 iputils-ping python3-minimal python3 curl ca-certificates systemd-boot-efi e2fsprogs util-linux'
 cp "$aptroot"/var/cache/apt/archives/*.deb "$out/debs/"
 (cd "$out/debs" && sha256sum --quiet -c "$repo/image/packages.sha256")

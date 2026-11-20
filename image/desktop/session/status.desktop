@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Node status
+Icon=/opt/refugium-desktop/icons/status.png
+Exec=/usr/lib/refugium-online/desktop/open status
+Terminal=false
