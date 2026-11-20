@@ -52,21 +52,21 @@ install -m0644 "$keys" "$apps/pubkeys"
 cp -r "$repo/image/desktop/session/." "$apps/"
 # Render the launchers at their final guest pixel size so tint2 can draw them 1:1.
 icon_size=$(awk '$1 == "launcher_icon_size" {print $3}' "$apps/tint2rc")
-# Yaru ships native 64-pixel PNGs in its 32x32@2x theme. Copy only the two
-# launchers and their attribution into the image.
+# The public-key editor uses a native Yaru icon. Both Buuf dock icons are
+# pinned desktop inputs and also supply the corresponding XTerm window icons.
 yaru="$work/yaru"
 icons=./usr/share/icons/Yaru/32x32@2x/apps
-mkdir -p "$yaru" "$r/usr/share/doc/yaru-theme-icon"
+mkdir -p "$yaru" "$r/usr/share/doc/yaru-theme-icon" "$r/usr/share/doc/buuf-icons-for-plasma"
 ar p "$inputs/yaru-theme-icon_24.04.2-0ubuntu1_all.deb" data.tar.zst | zstd -dc | \
-    tar -xC "$yaru" "$icons/terminal-app.png" \
-        "$icons/accessories-text-editor.png" ./usr/share/doc/yaru-theme-icon/copyright
+    tar -xC "$yaru" "$icons/accessories-text-editor.png" ./usr/share/doc/yaru-theme-icon/copyright
 install -m0644 "$yaru/usr/share/doc/yaru-theme-icon/copyright" "$r/usr/share/doc/yaru-theme-icon/"
 install -m0644 "$yaru/$icons/accessories-text-editor.png" "$apps/icons/pubkeys.png"
-install -m0644 "$yaru/$icons/terminal-app.png" "$apps/icons/refugium-terminal.png"
+install -m0644 "$repo/image/desktop/buuf-credits.txt" "$r/usr/share/doc/buuf-icons-for-plasma/copyright"
+install -m0644 "$inputs/buuf/utilities-system-monitor.png" "$apps/icons/status.png"
+install -m0644 "$inputs/buuf/utilities-terminal.png" "$apps/icons/refugium-terminal.png"
 render_icon() {
     vips thumbnail "$2" "$apps/icons/$1.png[strip]" "$icon_size"
 }
-render_icon status "$apps/node-status.svg"
 render_icon esplora "$apps/blockstream-mark.svg"
 render_icon mempool "$apps/mempool/resources/bimi.svg"
 render_icon wallet "$apps/refugium-shield.svg"

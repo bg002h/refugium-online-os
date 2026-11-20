@@ -29,3 +29,5 @@ The default desktop now uses the 64-pixel launchers. The Node status launcher an
 The default wallet launcher uses the approved small shield with a four-tick clock ring and a larger Bitcoin symbol. Its 64 × 64 guest framebuffer rectangle matched the packaged icon composited on the dock at every pixel. Clicking the shield opened Refugium Wallet.
 
 The Esplora launcher uses the blue circle from Blockstream’s logo. At 210 × 210 pixels the extracted paths matched the original circle crop pixel for pixel. The 64 × 64 dock icon matched the guest framebuffer. Clicking it opened Firefox at the local explorer on port 8080. [Blockstream artwork](https://blog.blockstream.com/images/ds/logo-light.svg).
+
+On a fresh UEFI boot, the public desktop build showed the approved Buuf Node status and Terminal icons alongside the Blockstream circle, mempool.space, wallet and public-key launchers. The six-launcher strip matched the approved VM capture pixel for pixel at 1920 × 1080. Both downloaded Buuf PNGs and their XTerm pixmaps matched the preview assets. The image includes the artwork notice under /usr/share/doc/buuf-icons-for-plasma/.

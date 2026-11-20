@@ -73,6 +73,8 @@ scripts/desktop-payload .work/desktop/inputs /path/to/mr-gui /path/to/test-pubke
 scripts/build .work/inputs .work/kernel/arch/x86/boot/bzImage .work/refugium-online-os.img .work/inputs/bitcoin-satellite .work/desktop.ext4
 ```
 
+The desktop fetcher downloads the two approved 64-pixel Buuf icons for Node status and Terminal and checks their SHA-256 digests. The guest includes the artist’s credit and redistribution terms. [Buuf artwork notice](image/desktop/buuf-credits.txt)
+
 The desktop payload builder also needs the libvips CLI with SVG support (Ubuntu package `libvips-tools`), ImageMagick, glib-compile-schemas, update-mime-database, a Noble-compatible x86-64 mr-gui executable and an explicitly supplied public test fixture. The fixture is readable by anyone with the image. Omit the final desktop filesystem argument from the build command for a serial appliance. The fetcher checks the Ubuntu Base, Linux, Bitcoin Core and Bitcoin Satellite archives and the locked Noble packages. The receiver builds without a wallet in an isolated, networkless Noble toolchain. Its build applies the IPv4 multicast patch required by the appliance kernel. Image assembly runs without mounting or writing a raw host device. Use a new output path for a subsequent build.
 
 ## Acceptance
