@@ -27,16 +27,34 @@ while read -r digest name; do
 done < "$repo/image/packages.sha256"
 mkdir -p "$r"/{data,run,tmp,etc/refugium-online,usr/local/bin,usr/lib/refugium-online,etc/ssl/certs}
 tar -xf "$inputs/bitcoin-31.1-x86_64-linux-gnu.tar.gz" -C "$r/usr/local/bin" --strip-components=2 bitcoin-31.1/bin/bitcoind bitcoin-31.1/bin/bitcoin-cli
+# Keep Blockstream's receiver separate from upstream Core.
+mkdir -p "$r/usr/local/libexec" "$r/usr/share/doc/bitcoin-satellite"
+receiver=${4:-$inputs/bitcoin-satellite}
+if [[ ! -x $receiver ]]; then "$repo/scripts/receiver" "$inputs" "$receiver"; fi
+install -m0755 "$receiver" "$r/usr/local/libexec/bitcoin-satellite"
+tar -xOf "$inputs/bitcoinsatellite-v25.0-satellite0.2.4.tar.gz" bitcoinsatellite-25.0-satellite0.2.4/COPYING > "$r/usr/share/doc/bitcoin-satellite/copyright"
+while read -r digest name url; do
+    deb="$inputs/satellite/$name"
+    printf '%s  %s\n' "$digest" "$deb" | sha256sum --quiet -c -
+    member=$(ar t "$deb" | grep '^data.tar')
+    case "$member" in
+        *.xz) decoder=xz ;;
+        *.zst) decoder=zstd ;;
+        *.gz) decoder=gzip ;;
+        *) exit 1 ;;
+    esac
+    ar p "$deb" "$member" | "$decoder" -dc | tar --keep-directory-symlink --no-same-owner -x -C "$r"
+done < "$repo/image/satellite/runtime-packages.lock"
 install -m0755 "$repo/image/init" "$r/init"
 install -m0644 "$repo"/image/app/*.py "$r/usr/lib/refugium-online/"
-install -m0644 "$repo"/image/{torrc,bitcoin.conf,peers} "$r/etc/refugium-online/"
+install -m0644 "$repo"/image/{torrc,bitcoin.conf,peers,mainnet.conf,satellite.conf,mainnet-peers} "$r/etc/refugium-online/"
 cat "$r"/usr/share/ca-certificates/mozilla/*.crt > "$r/etc/ssl/certs/ca-certificates.crt"
-for entry in tor:910 peers:911 bitcoin:912 explorer:913 operator:914; do
+for entry in tor:910 peers:911 bitcoin:912 explorer:913 operator:914 archive:915 satellite:916 relay:917 radio:918; do
     name=ro-${entry%:*}; id=${entry#*:}
     echo "$name:x:$id:$id:Refugium service:/:/usr/sbin/nologin" >> "$r/etc/passwd"
     echo "$name:x:$id:" >> "$r/etc/group"
 done
-printf '%s\n' 'NAME="Refugium Online OS"' 'ID=refugium-online-os' 'ID_LIKE=ubuntu' 'PRETTY_NAME="Refugium Online OS (signet)"' > "$r/etc/os-release.new"
+printf '%s\n' 'NAME="Refugium Online OS"' 'ID=refugium-online-os' 'ID_LIKE=ubuntu' 'PRETTY_NAME="Refugium Online OS"' > "$r/etc/os-release.new"
 mv -T "$r/etc/os-release.new" "$r/etc/os-release"
 for essential in bin/sh usr/bin/python3 usr/bin/tor usr/sbin/nft usr/sbin/ip lib64/ld-linux-x86-64.so.2; do
     test -x "$r/$essential" || { echo "Missing guest executable $essential" >&2; exit 1; }

@@ -11,7 +11,10 @@ import time
 
 sys.path.insert(0, '/usr/lib/refugium-online')
 import firewall
-from settings import BITCOIN, FILTER, OPERATOR, TOR, WEB
+from settings import ARCHIVE, BITCOIN, FILTER, OPERATOR, RADIO, RELAY, SATELLITE, TOR, WEB
+
+SERVICES = (0, TOR, FILTER, BITCOIN, WEB, OPERATOR, ARCHIVE, SATELLITE, RELAY, RADIO)
+PORTS = (9050, 9051, 38332, 8332, 8432)
 
 
 def try_connect(host, port):
@@ -21,7 +24,7 @@ def try_connect(host, port):
 
 
 def probe(uid, phase):
-    local=[port for port in (9050,9051,38332) if try_connect('127.0.0.1',port)]
+    local=[port for port in PORTS if try_connect('127.0.0.1',port)]
     # The QEMU test backend has restrict=on. These frames cannot reach any real host.
     # Distinct destination suffixes let the external capture identify each attempt.
     base={'locked':30,'enabled':20,'relocked':40}[phase]
@@ -45,7 +48,7 @@ def main():
     ip('link','set','dev',dev,'up')
     ip('route','add','default','via','10.0.2.2','dev',dev)
     ports=[]
-    for port in (9050,9051,38332):
+    for port in PORTS:
         srv=socket.socket()
         srv.bind(('127.0.0.1',port))
         srv.listen(50)
@@ -62,15 +65,17 @@ def main():
     assert len(disabled_families)==2, disabled_families
     for phase in ('locked','enabled','relocked'):
         firewall.install(dev,phase=='enabled')
-        for uid in (0,TOR,FILTER,BITCOIN,WEB,OPERATOR):
+        for uid in SERVICES:
             raw=subprocess.check_output([sys.executable,'-B',__file__,'--probe',str(uid),phase],
                                         user=uid,group=uid,extra_groups=[],stderr=subprocess.STDOUT)
             allowed=set(json.loads(raw))
             expected={38332} if uid in (0,BITCOIN,WEB) else set()
+            if uid in (0, RELAY):
+                expected.update((8332, 8432))
             if phase=='enabled' and uid==FILTER:
                 expected.update((9050,9051))
             assert allowed==expected,(phase,uid,allowed,expected)
-    print('EGRESS-PASS '+json.dumps({'uid_count':6,'phases':3,'unavailable':disabled_families}),flush=True)
+    print('EGRESS-PASS '+json.dumps({'uid_count':len(SERVICES),'phases':3,'unavailable':disabled_families}),flush=True)
 
 
 if __name__=='__main__':

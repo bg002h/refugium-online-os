@@ -5,7 +5,7 @@ import os
 import socket
 import struct
 
-from settings import BITCOIN, EXPLORER_HOST, PEERS, PEER_SOCKET, SITE_SOCKET, WEB
+from settings import ARCHIVE, ARCHIVE_PEERS, ARCHIVE_SOCKET, BITCOIN, EXPLORER_HOST, PEERS, PEER_SOCKET, SITE_SOCKET, WEB
 
 DENY = b'\x05\x02\0\x01' + bytes(6)
 
@@ -61,7 +61,7 @@ async def open_tor_stream(name, port, listener):
         raise
 
 
-async def serve(reader, writer, peers=None):
+async def serve(reader, writer, peers=None, client_uid=BITCOIN):
     """The socket selects the policy. Only the Core socket accepts a destination."""
     remote = None
     tasks = []
@@ -73,7 +73,7 @@ async def serve(reader, writer, peers=None):
                 return
             name, port, listener = EXPLORER_HOST.encode('ascii'), 443, 9051
         else:
-            if uid != BITCOIN:
+            if uid != client_uid:
                 return
             name, port = await asyncio.wait_for(handshake(reader, writer, peers), 10)
             listener = 9050
@@ -98,14 +98,16 @@ async def serve(reader, writer, peers=None):
 
 async def main():
     peers = set(PEERS.read_text().splitlines())
-    for path in (PEER_SOCKET, SITE_SOCKET):
+    for path in (PEER_SOCKET, ARCHIVE_SOCKET, SITE_SOCKET):
         path.unlink(missing_ok=True)
     core = await asyncio.start_unix_server(lambda r, w: serve(r, w, peers), PEER_SOCKET)
+    main_peers = set(ARCHIVE_PEERS.read_text().splitlines())
+    archive = await asyncio.start_unix_server(lambda r,w: serve(r,w,main_peers,ARCHIVE), ARCHIVE_SOCKET)
     web = await asyncio.start_unix_server(serve, SITE_SOCKET)
-    for path in (PEER_SOCKET, SITE_SOCKET):
+    for path in (PEER_SOCKET, ARCHIVE_SOCKET, SITE_SOCKET):
         os.chmod(path, 0o660)
-    async with core, web:
-        await asyncio.gather(core.serve_forever(), web.serve_forever())
+    async with core, archive, web:
+        await asyncio.gather(core.serve_forever(), archive.serve_forever(), web.serve_forever())
 
 
 if __name__ == '__main__':

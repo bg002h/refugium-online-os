@@ -37,7 +37,7 @@ async def console():
             print(f'Control unavailable: {error}', flush=True)
 
     pending = set()
-    print('Refugium Online OS | signet\nstatus  connect  lock  compare  broadcast  poweroff', flush=True)
+    print('Refugium Online OS | mainnet archive, satellite receiver, signet test node\nstatus  connect  lock  compare (signet)  broadcast (signet)  poweroff', flush=True)
     while True:
         try:
             command = await line()
@@ -77,7 +77,7 @@ async def console():
                         break
                     parts.append(part)
             elif command:
-                print('status  connect  lock  compare  broadcast  poweroff', flush=True)
+                print('status  connect  lock  compare (signet)  broadcast (signet)  poweroff', flush=True)
         except EOFError:
             return
         except (ValueError, OSError) as error:

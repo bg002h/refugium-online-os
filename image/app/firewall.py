@@ -2,7 +2,7 @@
 import re
 import subprocess
 
-from settings import BITCOIN, FILTER, TOR, WEB
+from settings import BITCOIN, FILTER, RADIO, RELAY, TOR, WEB
 
 # The QEMU NAT gateway is on-link. Only Tor relay IP traffic uses the default route.
 NONPUBLIC = ('0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, '
@@ -48,6 +48,8 @@ def rules(interface, online):
         chain output {{ type filter hook output priority 0; policy drop;
             oifname "lo" ct state established accept
             oifname "lo" ip daddr 127.0.0.1 meta skuid {{ 0, {BITCOIN}, {WEB} }} tcp dport 38332 accept
+            oifname "lo" ip daddr 127.0.0.1 meta skuid {{ 0, {RELAY} }} tcp dport {{ 8332, 8432 }} accept
+            oifname "lo" ip saddr 127.0.0.1 ip daddr 239.0.0.2 meta skuid {RADIO} udp dport 4434 accept
             {local_tor}
             {egress}
         }}

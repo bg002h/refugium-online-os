@@ -1,4 +1,4 @@
-"""PID 1 for the single-adapter signet appliance."""
+"""PID 1 for the single-uplink Bitcoin appliance."""
 import asyncio
 import ctypes
 import json
@@ -12,8 +12,9 @@ import subprocess
 import sys
 import time
 
+from satellite_roles import Mainnet
 import firewall
-from settings import APP, BITCOIN, CLI, CONTROL, FILTER, OPERATOR, PEERS, TOR, WEB
+from settings import APP, ARCHIVE, BITCOIN, CLI, CONTROL, FILTER, OPERATOR, PEERS, TOR, WEB
 
 
 def run(*args, **options):
@@ -54,7 +55,10 @@ class Appliance:
         self.workers = set()
         self.consoles = []
         self.stopping = False
+        self.cutoff_error = None
+        self.tor_data = None
         self.mount = False
+        self.mainnet = Mainnet()
 
     def boot(self):
         external = sorted(p.name for p in Path('/sys/class/net').iterdir() if p.name != 'lo')
@@ -64,17 +68,23 @@ class Appliance:
             self.interface = external[0]
         firewall.install(self.interface, False)
         run('ip', 'link', 'set', 'lo', 'up')
+        run('ip', 'route', 'replace', '239.0.0.2/32', 'dev', 'lo', 'src', '127.0.0.1')
         if len(external) > 1:
             self.issue = 'Multiple adapters present; network activation disabled'
         if Path('/proc/net/if_inet6').exists():
             raise RuntimeError('Unexpected IPv6 support')
         directory('/run/refugium', 0, OPERATOR, 0o750)
         directory('/run/peer-filter', FILTER, BITCOIN, 0o750)
+        directory('/run/main-peer', FILTER, ARCHIVE, 0o2750)
         directory('/run/site-filter', FILTER, WEB, 0o2750)
         directory('/run/bitcoin', BITCOIN, BITCOIN, 0o750)
         directory('/run/bitcoin-client', 0, 0, 0o755)
         directory('/run/bitcoin-client/signet', 0, 0, 0o755)
         Path('/run/log').mkdir(exist_ok=True)
+        try:
+            self.mainnet.start(directory,self.daemon,launch)
+        except (OSError, subprocess.SubprocessError) as error:
+            self.mainnet.issues['startup'] = str(error)
         for _ in range(30):
             devices = subprocess.run(['blkid','-t','LABEL=RO_SIGNET','-o','device'],
                                      capture_output=True, text=True).stdout.splitlines()
@@ -82,19 +92,23 @@ class Appliance:
                 break
             time.sleep(.1)
         if len(devices) != 1:
+            if self.mainnet.mounted:
+                directory('/mainnet/tor', TOR, TOR, 0o700)
+                self.tor_data = '/mainnet/tor'
             self.issue = 'One RO_SIGNET data disk is required'
             return
         run('mount', '-t', 'ext4', '-o', 'nodev,nosuid,noexec,noatime', devices[0], '/data')
         self.mount = True
         os.chown('/data', 0, 0)
         os.chmod('/data', 0o755)
+        directory('/data/tor', TOR, TOR, 0o700)
+        self.tor_data = '/data/tor'
         try:
             self.initialize_chain()
         except (OSError, ValueError, subprocess.SubprocessError) as error:
             self.issue = 'Could not initialize local signet storage: ' + str(error)
             return
         directory('/data/bitcoin', BITCOIN, BITCOIN, 0o700)
-        directory('/data/tor', TOR, TOR, 0o700)
         argv = ['/usr/local/bin/bitcoind', '-datadir=/data/bitcoin', '-conf=/etc/refugium-online/bitcoin.conf']
         argv.extend('-connect='+p for p in PEERS.read_text().splitlines())
         self.node = self.daemon(argv, BITCOIN, BITCOIN, 'core')
@@ -157,16 +171,23 @@ class Appliance:
         self.tor = self.broker = None
         if failures:
             self.issue = 'Cutoff control failure: ' + ', '.join(failures)
+            self.cutoff_error = self.issue
             raise RuntimeError(self.issue)
         return {'mode': self.mode}
+
+    def has_core(self):
+        nodes = (self.node, self.mainnet.procs.get('archive'))
+        return any(node is not None and node.poll() is None for node in nodes)
 
     def connect(self):
         if self.mode == 'tor':
             return {'mode': 'tor'}
-        if self.issue or not self.node or self.node.poll() is not None:
-            raise ValueError(self.issue or 'Local node unavailable')
+        if self.cutoff_error:
+            raise ValueError(self.cutoff_error)
         if not self.interface:
-            raise ValueError('No uplink adapter. This boot is sealed.')
+            raise ValueError(self.issue or 'No uplink adapter. This boot is sealed.')
+        if not self.tor_data or not self.has_core():
+            raise ValueError(self.issue or 'Local Core nodes unavailable')
         try:
             run('ip', 'addr', 'replace', '10.0.2.15/24', 'dev', self.interface)
             firewall.install(self.interface, True)
@@ -179,7 +200,8 @@ class Appliance:
             else:
                 raise ValueError('The host uplink is disconnected')
             run('ip', 'route', 'replace', 'default', 'via', '10.0.2.2', 'dev', self.interface)
-            self.tor = self.daemon(['/usr/bin/tor', '-f', '/etc/refugium-online/torrc'], TOR, TOR, 'tor')
+            self.tor = self.daemon(['/usr/bin/tor', '-f', '/etc/refugium-online/torrc',
+                                    '--DataDirectory', self.tor_data], TOR, TOR, 'tor')
             self.broker = self.daemon([sys.executable, '-B', APP/'peer_filter.py'], FILTER, BITCOIN, 'peers')
             self.mode = 'tor'
             return {'mode': 'tor', 'transport': 'bootstrapping; no direct fallback'}
@@ -213,6 +235,7 @@ class Appliance:
                     data = json.loads(raw)
                     status[key] = ({k:data[k] for k in ('chain','blocks','headers','initialblockdownload')}
                                    if key=='node' else data)
+        status['mainnet'] = await self.mainnet.status()
         return status
 
     async def explorer(self, msg):
@@ -281,13 +304,14 @@ class Appliance:
             await asyncio.sleep(.5)
             if self.mode == 'tor':
                 carrier = Path('/sys/class/net', self.interface, 'carrier').read_text().strip()
-                if carrier != '1' or any(p.poll() is not None for p in (self.node,self.tor,self.broker)):
+                if carrier != '1' or not self.has_core() or any(p.poll() is not None for p in (self.tor,self.broker)):
                     self.lock()
         server.close()
         await server.wait_closed()
         if self.node and self.node.poll() is None:
             self.node.terminate()
             await asyncio.to_thread(self.node.wait)
+        await self.mainnet.stop()
         os.sync()
         if self.mount:
             run('umount','/data')
