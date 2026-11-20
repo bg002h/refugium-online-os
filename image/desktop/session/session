@@ -1,7 +1,13 @@
 #!/bin/sh
 set -eu
 export PATH=/usr/local/bin:/usr/bin:/bin
-openbox --config-file /etc/xdg/openbox/rc.xml &
+# A tiled viewer can advertise a portrait mode before X starts.
+xrandr --output Virtual-1 --mode 1920x1080 || :
+# Keep Ubuntu's bindings and themes and fit the wallet above the dock.
+config="$XDG_RUNTIME_DIR/openbox.xml"
+sed 's|<applications>|&<application class="mr-gui" type="normal"><maximized>yes</maximized></application>|' \
+    /etc/xdg/openbox/rc.xml > "$config"
+openbox --config-file "$config" &
 wm=$!
 xsetroot -solid '#253646'
 xset s off
