@@ -20,6 +20,7 @@ launcher_item_app = /usr/lib/refugium-online/desktop/esplora.desktop
 launcher_item_app = /usr/lib/refugium-online/desktop/mempool.desktop
 launcher_item_app = /usr/lib/refugium-online/desktop/wallet.desktop
 launcher_item_app = /usr/lib/refugium-online/desktop/pubkeys.desktop
+launcher_item_app = /usr/lib/refugium-online/desktop/refugium-terminal.desktop
 taskbar_mode = single_desktop
 taskbar_padding = 6 0 6
 task_icon = 1

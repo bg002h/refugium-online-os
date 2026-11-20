@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal
+Icon=utilities-terminal
+Exec=/usr/lib/refugium-online/desktop/open terminal
+Terminal=false
+Categories=System;TerminalEmulator;

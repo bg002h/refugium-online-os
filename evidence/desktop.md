@@ -10,4 +10,6 @@ The disposable firewall test exercised 13 UIDs with egress locked, enabled and r
 
 The display follow-up booted at 1920 × 1080. Openbox reported a 1920 × 1018 work area above the 62-pixel dock. The maximized wallet client measured 1920 × 999 beneath its 19-pixel title bar. In the visible VM, the rightmost navigation button, Retry, Show details and the lower-right footer were all visible at once.
 
+The launcher update adds Terminal as the sixth dock entry. Clicking it opened Bash 5.2.21 as the desktop operator (UID 914) in the operator’s home directory, with a guest pseudoterminal. The test ran a command and exited the shell. Clicking the shield launched the wallet. The dock uses the crop defined by mr-gui’s `Shield` component from `crates/mr-gui/ui/img/logo.png`, scaled into a 128-pixel square. The installed application entries matched those used by the dock.
+
 The desktop release inputs are pinned by digest in [assets.lock](../image/desktop/assets.lock) and [packages.lock](../image/desktop/packages.lock). The released explorer code comes from [Blockstream Esplora](https://github.com/Blockstream/esplora), [mempool](https://github.com/mempool/mempool) and [mempool electrs](https://github.com/mempool/electrs).

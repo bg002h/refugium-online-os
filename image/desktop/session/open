@@ -3,6 +3,12 @@ set -eu
 apps=/opt/refugium-desktop
 case "$1" in
     status) exec xterm -name refugium-status -title 'Refugium | Node status' -fa 'DejaVu Sans Mono' -fs 12 -bg '#101923' -fg '#e6ebef' -geometry 82x26+28+22 -e /usr/bin/python3 -B /usr/lib/refugium-online/console.py --screen ;;
+    terminal)
+        cd "$HOME"
+        export SHELL=/bin/bash
+        exec xterm -name refugium-terminal -title 'Terminal' -fa 'DejaVu Sans Mono' -fs 12 \
+            -bg '#101923' -fg '#e6ebef' -geometry 90x28 -e "$SHELL" -i
+        ;;
     esplora) exec "$apps/firefox/firefox" --new-window http://127.0.0.1:8080/ ;;
     mempool) exec "$apps/firefox/firefox" --new-window http://127.0.0.1:8081/ ;;
     # QEMU scales the entire guest. Let the wallet lay out in guest pixels.
