@@ -52,24 +52,30 @@ install -m0644 "$keys" "$apps/pubkeys"
 cp -r "$repo/image/desktop/session/." "$apps/"
 # Render the launchers at their final guest pixel size so tint2 can draw them 1:1.
 icon_size=$(awk '$1 == "launcher_icon_size" {print $3}' "$apps/tint2rc")
-# Yaru ships native 64-pixel PNGs in its 32x32@2x theme. Copy only the three
+# Yaru ships native 64-pixel PNGs in its 32x32@2x theme. Copy only the two
 # launchers and their attribution into the image.
 yaru="$work/yaru"
 icons=./usr/share/icons/Yaru/32x32@2x/apps
 mkdir -p "$yaru" "$r/usr/share/doc/yaru-theme-icon"
 ar p "$inputs/yaru-theme-icon_24.04.2-0ubuntu1_all.deb" data.tar.zst | zstd -dc | \
-    tar -xC "$yaru" "$icons/system-monitor-app.png" "$icons/terminal-app.png" \
+    tar -xC "$yaru" "$icons/terminal-app.png" \
         "$icons/accessories-text-editor.png" ./usr/share/doc/yaru-theme-icon/copyright
 install -m0644 "$yaru/usr/share/doc/yaru-theme-icon/copyright" "$r/usr/share/doc/yaru-theme-icon/"
-install -m0644 "$yaru/$icons/system-monitor-app.png" "$apps/icons/status.png"
 install -m0644 "$yaru/$icons/accessories-text-editor.png" "$apps/icons/pubkeys.png"
 install -m0644 "$yaru/$icons/terminal-app.png" "$apps/icons/refugium-terminal.png"
 render_icon() {
     vips thumbnail "$2" "$apps/icons/$1.png[strip]" "$icon_size"
 }
+render_icon status "$apps/node-status.svg"
 render_icon esplora "$apps/esplora/img/icons/Bitcoin-menu-logo.svg"
 render_icon mempool "$apps/mempool/resources/bimi.svg"
 render_icon wallet "$apps/refugium-shield.png"
+# XTerm's iconHint takes an XPM pixmap. Derive it from the same icon as the launcher.
+if command -v magick >/dev/null; then imagemagick=magick; else imagemagick=convert; fi
+for icon in status refugium-terminal; do
+    "$imagemagick" "$apps/icons/$icon.png" -channel A -threshold 50% +channel \
+        -colors 128 "$apps/icons/$icon.xpm"
+done
 mkdir -p "$apps/firefox/distribution"
 cp "$apps/firefox-policy.json" "$apps/firefox/distribution/policies.json"
 mkdir -p "$r/usr/share/applications"; cp "$apps"/*.desktop "$r/usr/share/applications/"
