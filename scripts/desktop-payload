@@ -67,7 +67,7 @@ render_icon() {
     vips thumbnail "$2" "$apps/icons/$1.png[strip]" "$icon_size"
 }
 render_icon status "$apps/node-status.svg"
-render_icon esplora "$apps/esplora/img/icons/Bitcoin-menu-logo.svg"
+render_icon esplora "$apps/blockstream-mark.svg"
 render_icon mempool "$apps/mempool/resources/bimi.svg"
 render_icon wallet "$apps/refugium-shield.svg"
 # XTerm's iconHint takes an XPM pixmap. Derive it from the same icon as the launcher.

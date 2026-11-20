@@ -27,3 +27,5 @@ The 64 × 64 comparison build copies three native 64-pixel Yaru PNGs for Node st
 The default desktop now uses the 64-pixel launchers. The Node status launcher and running window share the custom pulse-monitor artwork. The Terminal window uses the terminal launcher artwork. In a sealed guest, the X11 window manager icon pixmaps matched their respective source pixmaps at all 169 sampled opaque points for Node status and all 170 for Terminal. A guest framebuffer capture also showed the two distinct icons on the running task buttons.
 
 The default wallet launcher uses the approved small shield with a four-tick clock ring and a larger Bitcoin symbol. Its 64 × 64 guest framebuffer rectangle matched the packaged icon composited on the dock at every pixel. Clicking the shield opened Refugium Wallet.
+
+The Esplora launcher uses the blue circle from Blockstream’s logo. At 210 × 210 pixels the extracted paths matched the original circle crop pixel for pixel. The 64 × 64 dock icon matched the guest framebuffer. Clicking it opened Firefox at the local explorer on port 8080. [Blockstream artwork](https://blog.blockstream.com/images/ds/logo-light.svg).
