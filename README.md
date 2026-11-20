@@ -50,6 +50,8 @@ If the archive needs a block the receiver has already pruned, status gives the m
 
 ## What can leave
 
+The operator can run `ping -V` in Terminal to check the installed version. With the firewall active, `ping -4 -n -c 1 -W 1 127.0.0.1` should report one packet transmitted and zero received. In a sealed VM an external IPv4 destination has no route.
+
 Only Tor can open a public IPv4 TCP connection, on port 443. The virtual gateway also needs local ARP. The two Core processes have separate private proxies. Signet can request nine pinned peers on port 38333. The mainnet archive can request six pinned onion peers on port 8333. A separate private socket takes the explorer only to `blockstream.info:443`. HTTPS verifies the hostname and certificate, and the client has three operations on the signet API. The guest browser can reach the two local explorer frontends. Its firewall policy denies direct Internet and Tor access. Bitcoin RPC listens on loopback, the nodes disable wallets, and the guest has no DNS client service. Public signet peer availability and Tor exit access can change. Operator time comes from the VM clock.
 
 The host, guest kernel and packaged services are trusted. Application allowlists constrain destinations and operations. They do not inspect every possible use of data inside permitted Bitcoin messages. Use the host seal or start without an adapter whenever the requirement is zero transmission. The [spec](design/spec.md) records the trust boundary and upstream protocol references.

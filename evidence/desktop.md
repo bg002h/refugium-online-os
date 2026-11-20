@@ -12,4 +12,6 @@ The display follow-up booted at 1920 × 1080. Openbox reported a 1920 × 1018 wo
 
 The launcher update adds Terminal as the sixth dock entry. Clicking it opened Bash 5.2.21 as the desktop operator (UID 914) in the operator’s home directory, with a guest pseudoterminal. The test ran a command and exited the shell. Clicking the shield launched the wallet. The dock uses the crop defined by mr-gui’s `Shield` component from `crates/mr-gui/ui/img/logo.png`, scaled into a 128-pixel square. The installed application entries matched those used by the dock.
 
+The Ubuntu iputils-ping package was exercised from the Terminal launcher as UID 914. In the sealed guest, loopback echo reported 100% packet loss and an external numeric address reported no route. In the independent restricted-network test, the same operator received a loopback echo reply before firewall installation. With the rules active, loopback and external echo failed in each of the three phases. The external capture contained no outbound ICMP.
+
 The desktop release inputs are pinned by digest in [assets.lock](../image/desktop/assets.lock) and [packages.lock](../image/desktop/packages.lock). The released explorer code comes from [Blockstream Esplora](https://github.com/Blockstream/esplora), [mempool](https://github.com/mempool/mempool) and [mempool electrs](https://github.com/mempool/electrs).

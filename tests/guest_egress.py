@@ -47,8 +47,15 @@ def probe(uid, phase):
 def main():
     dev=next(p.name for p in Path('/sys/class/net').iterdir() if p.name!='lo')
     ip=lambda *args:subprocess.run(['ip',*args],check=True)
-    firewall.install(dev,False)
+    def ping(host):
+        return subprocess.run(['ping','-4','-n','-c','1','-W','1',host], user=OPERATOR,
+                              group=OPERATOR, extra_groups=[], capture_output=True, timeout=5)
+
     ip('link','set','lo','up')
+    # Positive control with only loopback up in the disposable test guest.
+    loopback = ping('127.0.0.1')
+    assert loopback.returncode == 0, (loopback.stdout, loopback.stderr)
+    firewall.install(dev,False)
     ip('addr','add','10.0.2.15/24','dev',dev)
     ip('link','set','dev',dev,'up')
     ip('route','add','default','via','10.0.2.2','dev',dev)
@@ -70,6 +77,9 @@ def main():
     assert len(disabled_families)==2, disabled_families
     for phase in ('locked','enabled','relocked'):
         firewall.install(dev,phase=='enabled')
+        for target in ('127.0.0.1', '93.184.216.77'):
+            blocked = ping(target)
+            assert blocked.returncode == 1, (phase, target, blocked.stdout, blocked.stderr)
         def check(uid):
             raw=subprocess.check_output([sys.executable,'-B',__file__,'--probe',str(uid),phase],
                                         user=uid,group=uid,extra_groups=[],stderr=subprocess.STDOUT)
