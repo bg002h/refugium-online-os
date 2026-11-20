@@ -50,6 +50,18 @@ PY
 install -m0755 "$wallet" "$apps/bin/mr-gui"
 install -m0644 "$keys" "$apps/pubkeys"
 cp -r "$repo/image/desktop/session/." "$apps/"
+# Render the launchers at their final guest pixel size so tint2 can draw them 1:1.
+icon_size=$(awk '$1 == "launcher_icon_size" {print $3}' "$apps/tint2rc")
+theme="$r/usr/share/icons/Humanity/apps/48"
+render_icon() {
+    vips thumbnail "$2" "$apps/icons/$1.png[strip]" "$icon_size"
+}
+render_icon status "$theme/utilities-system-monitor.svg"
+render_icon esplora "$apps/esplora/img/icons/Bitcoin-menu-logo.svg"
+render_icon mempool "$apps/mempool/resources/bimi.svg"
+render_icon wallet "$apps/refugium-shield.png"
+render_icon pubkeys "$theme/accessories-text-editor.svg"
+render_icon refugium-terminal "$theme/utilities-terminal.svg"
 mkdir -p "$apps/firefox/distribution"
 cp "$apps/firefox-policy.json" "$apps/firefox/distribution/policies.json"
 mkdir -p "$r/usr/share/applications"; cp "$apps"/*.desktop "$r/usr/share/applications/"

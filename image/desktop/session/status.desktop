@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=Node status
-Icon=/usr/share/icons/Humanity/apps/48/utilities-system-monitor.svg
+Icon=/opt/refugium-desktop/icons/status.png
 Exec=/usr/lib/refugium-online/desktop/open status
 Terminal=false

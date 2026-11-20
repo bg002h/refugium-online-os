@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Refugium Wallet (mr-gui)
-Icon=/usr/lib/refugium-online/desktop/refugium-shield.png
+Icon=/opt/refugium-desktop/icons/wallet.png
 StartupWMClass=mr-gui
 Exec=/usr/lib/refugium-online/desktop/open wallet
 Terminal=false

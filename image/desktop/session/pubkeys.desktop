@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=Test public keys
-Icon=accessories-text-editor
+Icon=/opt/refugium-desktop/icons/pubkeys.png
 Exec=/usr/lib/refugium-online/desktop/open pubkeys
 Terminal=false

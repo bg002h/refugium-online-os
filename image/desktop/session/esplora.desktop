@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
 Name=Esplora
-Icon=/opt/refugium-desktop/esplora/img/favicon.png
+Icon=/opt/refugium-desktop/icons/esplora.png
 Exec=/usr/lib/refugium-online/desktop/open esplora
 Terminal=false
