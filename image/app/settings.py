@@ -12,3 +12,5 @@ CLI = ['/usr/local/bin/bitcoin-cli', '-datadir=/run/bitcoin-client',
 ARCHIVE, SATELLITE, RELAY, RADIO = range(915, 919)
 ARCHIVE_SOCKET = Path('/run/main-peer/socks')
 ARCHIVE_PEERS = Path('/etc/refugium-online/mainnet-peers')
+
+INDEXER, MEMPOOL, LOCAL_WEB = range(919, 922)

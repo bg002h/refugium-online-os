@@ -102,7 +102,7 @@ def main():
                '-device','virtserialport,chardev=radio,name=refugium.radio',
                '-monitor','none','-sandbox','on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny']
         if args.gui:
-            cmd += ['-device','virtio-vga','-device','usb-kbd','-display','gtk']
+            cmd += ['-device','virtio-vga','-device','usb-kbd','-device','usb-tablet','-display','gtk']
         else:
             cmd += ['-display','none']
         if args.serial_socket:

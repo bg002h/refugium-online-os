@@ -2,7 +2,8 @@
 import re
 import subprocess
 
-from settings import BITCOIN, FILTER, RADIO, RELAY, TOR, WEB
+from settings import BITCOIN, FILTER, INDEXER, LOCAL_WEB, MEMPOOL, OPERATOR, RADIO, RELAY, TOR, WEB
+from pathlib import Path
 
 # The QEMU NAT gateway is on-link. Only Tor relay IP traffic uses the default route.
 NONPUBLIC = ('0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, '
@@ -39,6 +40,13 @@ def rules(interface, online):
     if online:
         local_tor = f'''oifname "lo" ip daddr 127.0.0.1 meta skuid {FILTER} tcp dport 9050 accept
             oifname "lo" ip daddr 127.0.0.1 meta skuid {FILTER} tcp dport 9051 accept'''
+    desktop = ''
+    if Path('/etc/refugium-online/desktop').exists():
+        desktop = f'''oifname "lo" ip daddr 127.0.0.1 meta skuid {{ 0, {OPERATOR} }} tcp dport {{ 8080, 8081 }} accept
+            oifname "lo" ip daddr 127.0.0.1 meta skuid {OPERATOR} tcp dport 38332 accept
+            oifname "lo" ip daddr 127.0.0.1 meta skuid {{ {INDEXER}, {MEMPOOL} }} tcp dport 8332 accept
+            oifname "lo" ip daddr 127.0.0.1 meta skuid {{ 0, {LOCAL_WEB}, {MEMPOOL} }} tcp dport 3000 accept
+            oifname "lo" ip daddr 127.0.0.1 meta skuid {LOCAL_WEB} tcp dport 8999 accept'''
     return f'''flush ruleset
     table ip firewall {{
         chain input {{ type filter hook input priority 0; policy drop;
@@ -50,6 +58,7 @@ def rules(interface, online):
             oifname "lo" ip daddr 127.0.0.1 meta skuid {{ 0, {BITCOIN}, {WEB} }} tcp dport 38332 accept
             oifname "lo" ip daddr 127.0.0.1 meta skuid {{ 0, {RELAY} }} tcp dport {{ 8332, 8432 }} accept
             oifname "lo" ip saddr 127.0.0.1 ip daddr 239.0.0.2 meta skuid {RADIO} udp dport 4434 accept
+            {desktop}
             {local_tor}
             {egress}
         }}

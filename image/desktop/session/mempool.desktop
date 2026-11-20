@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=mempool.space
+Icon=/opt/refugium-desktop/mempool/resources/favicons/android-chrome-192x192.png
+Exec=/usr/lib/refugium-online/desktop/open mempool
+Terminal=false

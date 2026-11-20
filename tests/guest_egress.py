@@ -1,4 +1,5 @@
 """Synthetic-network test init. This file is added only to a disposable test initramfs."""
+from concurrent.futures import ThreadPoolExecutor
 import ctypes
 import errno
 import json
@@ -11,10 +12,14 @@ import time
 
 sys.path.insert(0, '/usr/lib/refugium-online')
 import firewall
-from settings import ARCHIVE, BITCOIN, FILTER, OPERATOR, RADIO, RELAY, SATELLITE, TOR, WEB
+from settings import ARCHIVE, BITCOIN, FILTER, INDEXER, LOCAL_WEB, MEMPOOL, OPERATOR, RADIO, RELAY, SATELLITE, TOR, WEB
 
 SERVICES = (0, TOR, FILTER, BITCOIN, WEB, OPERATOR, ARCHIVE, SATELLITE, RELAY, RADIO)
+DESKTOP = Path('/etc/refugium-online/desktop').exists()
 PORTS = (9050, 9051, 38332, 8332, 8432)
+if DESKTOP:
+    SERVICES += (INDEXER, MEMPOOL, LOCAL_WEB)
+    PORTS += (3000, 8080, 8081, 8999, 50001, 4224)
 
 
 def try_connect(host, port):
@@ -65,7 +70,7 @@ def main():
     assert len(disabled_families)==2, disabled_families
     for phase in ('locked','enabled','relocked'):
         firewall.install(dev,phase=='enabled')
-        for uid in SERVICES:
+        def check(uid):
             raw=subprocess.check_output([sys.executable,'-B',__file__,'--probe',str(uid),phase],
                                         user=uid,group=uid,extra_groups=[],stderr=subprocess.STDOUT)
             allowed=set(json.loads(raw))
@@ -74,7 +79,18 @@ def main():
                 expected.update((8332, 8432))
             if phase=='enabled' and uid==FILTER:
                 expected.update((9050,9051))
+            if DESKTOP:
+                if uid in (0, OPERATOR):
+                    expected.update((8080, 8081, 38332))
+                if uid in (INDEXER, MEMPOOL):
+                    expected.add(8332)
+                if uid in (0, LOCAL_WEB, MEMPOOL):
+                    expected.add(3000)
+                if uid == LOCAL_WEB:
+                    expected.add(8999)
             assert allowed==expected,(phase,uid,allowed,expected)
+        with ThreadPoolExecutor(max_workers=len(SERVICES)) as workers:
+            list(workers.map(check, SERVICES))
     print('EGRESS-PASS '+json.dumps({'uid_count':len(SERVICES),'phases':3,'unavailable':disabled_families}),flush=True)
 
 

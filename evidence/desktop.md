@@ -1,0 +1,11 @@
+# Desktop VM acceptance
+
+On November 20, 2026 the x86-64 UEFI image booted into Openbox. The default terminal showed all three node heights and satellite reception. After a window close and a fresh boot, the sealed VM recovered the signet test chain at height 331,658 and again reported incoming radio packets. The running demo uses a copy of the existing signet test disk. Its small mainnet test disk starts at genesis.
+
+The bottom dock launched mr-gui 0.1.0-alpha.1 and Mousepad. The wallet selected signet at the local RPC port and read its cookie. On a fresh signet disk it correctly reported initial sync. Selecting all text in Mousepad and copying produced a guest clipboard byte-for-byte identical to the supplied 2,417-byte fixture. Git contains neither the supplied binary nor the fixture.
+
+Guest Firefox rendered the packaged Esplora and mempool.space pages with WAN absent. Both HTTP roots and the mempool backend information route returned 200. The latter identified version 3.3.2. The local WebSocket handshake returned 101 and both frontend listeners refused a transaction POST with 405. Both pages use the local archive. The mainnet index was waiting for Bitcoin Core to finish initial sync. In a separate network-isolated four-block regtest, the packaged electrs binary with the shipping RPC allowlist returned the generated tip hash and block details. This run did not exercise a fully synced mainnet index or verify mainnet fee estimates.
+
+The disposable firewall test exercised 13 UIDs with egress locked, enabled and relocked. External capture recorded only the Tor account's TCP 443 probe in the enabled phase. The test also checked the allowed loopback ports for the operator, web service, indexer and mempool backend. Six peer/explorer protocol tests and four block-relay tests passed.
+
+The desktop release inputs are pinned by digest in [assets.lock](../image/desktop/assets.lock) and [packages.lock](../image/desktop/packages.lock). The released explorer code comes from [Blockstream Esplora](https://github.com/Blockstream/esplora), [mempool](https://github.com/mempool/mempool) and [mempool electrs](https://github.com/mempool/electrs).

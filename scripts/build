@@ -49,7 +49,7 @@ install -m0755 "$repo/image/init" "$r/init"
 install -m0644 "$repo"/image/app/*.py "$r/usr/lib/refugium-online/"
 install -m0644 "$repo"/image/{torrc,bitcoin.conf,peers,mainnet.conf,satellite.conf,mainnet-peers} "$r/etc/refugium-online/"
 cat "$r"/usr/share/ca-certificates/mozilla/*.crt > "$r/etc/ssl/certs/ca-certificates.crt"
-for entry in tor:910 peers:911 bitcoin:912 explorer:913 operator:914 archive:915 satellite:916 relay:917 radio:918; do
+for entry in tor:910 peers:911 bitcoin:912 explorer:913 operator:914 archive:915 satellite:916 relay:917 radio:918 electrs:919 mempool:920 local-web:921; do
     name=ro-${entry%:*}; id=${entry#*:}
     echo "$name:x:$id:$id:Refugium service:/:/usr/sbin/nologin" >> "$r/etc/passwd"
     echo "$name:x:$id:" >> "$r/etc/group"
@@ -59,6 +59,12 @@ mv -T "$r/etc/os-release.new" "$r/etc/os-release"
 for essential in bin/sh usr/bin/python3 usr/bin/tor usr/sbin/nft usr/sbin/ip lib64/ld-linux-x86-64.so.2; do
     test -x "$r/$essential" || { echo "Missing guest executable $essential" >&2; exit 1; }
 done
+desktop_fs=${5:-}
+if [[ -n $desktop_fs ]]; then
+    mkdir -p "$r/usr/lib/refugium-online/desktop"
+    cp -a "$repo/image/desktop/session/." "$r/usr/lib/refugium-online/desktop/"
+    touch "$r/etc/refugium-online/desktop"
+fi
 esp="$work/esp"
 mkdir -p "$esp"/{EFI/BOOT,loader/entries,refugium}
 cp "$r/usr/lib/systemd/boot/efi/systemd-bootx64.efi" "$esp/EFI/BOOT/BOOTX64.EFI"
@@ -79,5 +85,7 @@ mib=$(( $(du -sb "$esp" | cut -f1) / 1048576 + 24 ))
 truncate -s "${mib}M" "$work/efi.fat"
 mkfs.fat --invariant -F32 -n R_ONLINE "$work/efi.fat" >/dev/null
 mcopy -spm -i "$work/efi.fat" "$esp/EFI" "$esp/loader" "$esp/refugium" ::/
-python3 "$repo/scripts/gpt.py" "$work/efi.fat" "$out"
+args=()
+if [[ -n $desktop_fs ]]; then args=(--desktop "$desktop_fs"); fi
+python3 "$repo/scripts/gpt.py" "$work/efi.fat" "$out" "${args[@]}"
 sha256sum "$out"

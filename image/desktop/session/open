@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+apps=/opt/refugium-desktop
+case "$1" in
+    status) exec xterm -name refugium-status -title 'Refugium | Node status' -fa 'DejaVu Sans Mono' -fs 12 -bg '#101923' -fg '#e6ebef' -geometry 82x26+28+22 -e /usr/bin/python3 -B /usr/lib/refugium-online/console.py --screen ;;
+    esplora) exec "$apps/firefox/firefox" --new-window http://127.0.0.1:8080/ ;;
+    mempool) exec "$apps/firefox/firefox" --new-window http://127.0.0.1:8081/ ;;
+    wallet) exec "$apps/bin/mr-gui" ;;
+    pubkeys) exec mousepad "$HOME/pubkeys" ;;
+    *) exit 2 ;;
+esac

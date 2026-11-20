@@ -73,7 +73,11 @@ class Mainnet:
         os.chown(key,RELAY,RELAY)
         os.chmod(key,0o400)
         conf = run/'bitcoin.conf'
-        conf.write_text((BASE/base_conf).read_text()+'rpcauth=blockrelay:'+salt+'$'+verifier+'\n')
+        extra = ''
+        if name == 'archive' and (BASE/'desktop').exists():
+            from desktop_services import archive_auth
+            extra = archive_auth(directory)
+        conf.write_text((BASE/base_conf).read_text()+'rpcauth=blockrelay:'+salt+'$'+verifier+'\n'+extra)
         os.chown(conf,uid,uid)
         data = VOLUME/name
         args = [exe,'-conf='+str(conf)]
@@ -127,7 +131,7 @@ class Mainnet:
             chain, peers = await asyncio.gather(query('getblockchaininfo'),query('getconnectioncount'))
             if chain is None:
                 return {'issue':'RPC unavailable'}
-            status = {k:chain[k] for k in ('chain','blocks','headers','bestblockhash','pruned','time')}
+            status = {k:chain[k] for k in ('chain','blocks','headers','bestblockhash','pruned','time','initialblockdownload')}
             status['peers'] = peers
             if name == 'satellite':
                 status['multicast'], status['partial_blocks'] = await asyncio.gather(

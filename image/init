@@ -13,6 +13,25 @@ ln -s /proc/self/fd/2 /dev/stderr
 mkdir -p /run /data /dev/pts
 mount -t tmpfs -o nodev,nosuid,mode=0755 tmpfs /run
 mount -t devpts devpts /dev/pts
+if [ -f /etc/refugium-online/desktop ]; then
+    mkdir -p /run/desktop-image
+    tries=0
+    while ! desktop=$(blkid -t LABEL=RO_DESKTOP -o device); do
+        tries=$((tries+1)); [ "$tries" -lt 50 ] || exit 1
+        sleep .1
+    done
+    mount -t ext4 -o ro,nosuid,nodev "$desktop" /run/desktop-image
+    mount -t overlay -o lowerdir=/run/desktop-image/usr:/usr overlay /usr
+    mount --bind /run/desktop-image/opt /opt
+    for part in etc var; do
+        mkdir -p "/run/upper-$part" "/run/work-$part"
+        mount -t overlay -o "lowerdir=/run/desktop-image/$part:/$part,upperdir=/run/upper-$part,workdir=/run/work-$part" overlay "/$part"
+    done
+    mkdir -p /dev/shm /tmp/.X11-unix
+    mount -t tmpfs -o nosuid,nodev,mode=1777 tmpfs /dev/shm
+    chmod 1777 /tmp /tmp/.X11-unix
+    dbus-uuidgen > /etc/machine-id
+fi
 umask 077
 export PYTHONDONTWRITEBYTECODE=1
 exec /usr/bin/python3 -B /usr/lib/refugium-online/controller.py

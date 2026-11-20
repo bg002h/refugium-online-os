@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+export PATH=/usr/local/bin:/usr/bin:/bin
+openbox --config-file /etc/xdg/openbox/rc.xml &
+wm=$!
+xsetroot -solid '#253646'
+xset s off
+tint2 -c /usr/lib/refugium-online/desktop/tint2rc &
+/usr/lib/refugium-online/desktop/open status &
+wait "$wm"

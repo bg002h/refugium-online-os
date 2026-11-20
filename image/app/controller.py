@@ -12,6 +12,7 @@ import subprocess
 import sys
 import time
 
+from desktop_services import Explorers, indexed_tip
 from satellite_roles import Mainnet
 import firewall
 from settings import APP, ARCHIVE, BITCOIN, CLI, CONTROL, FILTER, OPERATOR, PEERS, TOR, WEB
@@ -59,6 +60,7 @@ class Appliance:
         self.tor_data = None
         self.mount = False
         self.mainnet = Mainnet()
+        self.explorers = Explorers() if Path('/etc/refugium-online/desktop').exists() else None
 
     def boot(self):
         external = sorted(p.name for p in Path('/sys/class/net').iterdir() if p.name != 'lo')
@@ -240,6 +242,8 @@ class Appliance:
         for name, mount, mounted in [('mainnet', '/mainnet', self.mainnet.mounted), ('signet', '/data', self.mount)]:
             if mounted:
                 status['disk_free_bytes'][name] = shutil.disk_usage(mount).free
+        if self.explorers:
+            status['index_height'] = await asyncio.to_thread(indexed_tip)
         return status
 
     async def explorer(self, msg):
@@ -293,7 +297,12 @@ class Appliance:
         server = await asyncio.start_unix_server(self.handle, CONTROL, limit=850_000)
         os.chown(CONTROL, 0, OPERATOR)
         os.chmod(CONTROL, 0o660)
-        for name in ('tty1','ttyS0'):
+        graph = self.explorers is not None and any(Path('/dev/dri').glob('card*'))
+        if self.explorers:
+            self.explorers.start(directory,'archive' in self.mainnet.procs)
+        if graph:
+            self.consoles.append(self.daemon([sys.executable,'-B',APP/'desktop_session.py'],0,0,'desktop'))
+        for name in (('ttyS0',) if graph else ('tty1','ttyS0')):
             try:
                 tty = os.open('/dev/'+name, os.O_RDWR|os.O_NOCTTY)
             except OSError:
@@ -306,12 +315,16 @@ class Appliance:
                 os.close(tty)
         while not self.stopping:
             await asyncio.sleep(.5)
+            if self.explorers:
+                self.explorers.poll()
             if self.mode == 'tor':
                 carrier = Path('/sys/class/net', self.interface, 'carrier').read_text().strip()
                 if carrier != '1' or not self.has_core() or any(p.poll() is not None for p in (self.tor,self.broker)):
                     self.lock()
         server.close()
         await server.wait_closed()
+        if self.explorers:
+            await self.explorers.stop()
         if self.node and self.node.poll() is None:
             self.node.terminate()
             await asyncio.to_thread(self.node.wait)

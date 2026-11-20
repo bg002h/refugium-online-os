@@ -40,7 +40,7 @@ async def console():
 
     pending = set()
     menu = 'screen  status  connect  lock  compare (signet)  broadcast (signet)  poweroff'
-    if os.isatty(0) and os.ttyname(0) == '/dev/tty1':
+    if '--screen' in sys.argv or (os.isatty(0) and os.ttyname(0) == '/dev/tty1'):
         await watch_status(call, terminal)
     print('Refugium Online OS | command console\n' + menu, flush=True)
     while True:

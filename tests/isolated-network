@@ -16,6 +16,7 @@ chmod 0755 overlay/qa/init
 timeout 90 qemu-system-x86_64 -machine q35,accel=kvm:tcg -m 1450 -smp 2 -nodefaults -display none \
     -no-reboot -monitor none -serial file:serial.log -kernel kernel -initrd root.gz \
     -append 'quiet rdinit=/qa/init console=ttyS0 panic=-1' \
+    -drive "file=$image,if=virtio,format=raw,readonly=on" \
     -netdev user,id=test,ipv6=off,restrict=on -device virtio-net-pci,netdev=test,romfile= \
     -object filter-dump,id=audit,netdev=test,maxlen=96,file=frames.pcap
 grep 'EGRESS-PASS' serial.log

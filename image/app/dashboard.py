@@ -50,6 +50,11 @@ def status_rows(state):
                 text = f'{name:<22}  {node.get("issue", "Unavailable")}'
             rows.append(('37', text))
 
+        if 'index_height' in state:
+            index = state['index_height']
+            waiting = ('Waiting for mainnet sync' if main.get('archive', {}).get('initialblockdownload')
+                       else 'Waiting for indexer')
+            rows.append(('37', 'Explorer index          ' + (f'{index:,}' if index is not None else waiting)))
         if not main.get('radio_input'):
             signal = 'Input unavailable'
         elif age is None:

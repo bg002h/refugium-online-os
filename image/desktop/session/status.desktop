@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Node status
+Icon=utilities-terminal
+Exec=/usr/lib/refugium-online/desktop/open status
+Terminal=false
