@@ -1,8 +1,10 @@
 """Local console. Commands are sent to the supervisor over a protected Unix socket."""
 import asyncio
 import json
+import os
 import sys
 
+from dashboard import watch_status
 from settings import CONTROL
 from explorer import MAX_HEX
 
@@ -37,11 +39,17 @@ async def console():
             print(f'Control unavailable: {error}', flush=True)
 
     pending = set()
-    print('Refugium Online OS | mainnet archive, satellite receiver, signet test node\nstatus  connect  lock  compare (signet)  broadcast (signet)  poweroff', flush=True)
+    menu = 'screen  status  connect  lock  compare (signet)  broadcast (signet)  poweroff'
+    if os.isatty(0) and os.ttyname(0) == '/dev/tty1':
+        await watch_status(call, terminal)
+    print('Refugium Online OS | command console\n' + menu, flush=True)
     while True:
         try:
             command = await line()
-            if command in ('status', 'connect', 'lock', 'poweroff'):
+            if command == 'screen':
+                await watch_status(call, terminal)
+                print('Refugium Online OS | command console\n' + menu, flush=True)
+            elif command in ('status', 'connect', 'lock', 'poweroff'):
                 await show(command)
             elif command == 'compare':
                 task = asyncio.create_task(show(command))
@@ -77,7 +85,7 @@ async def console():
                         break
                     parts.append(part)
             elif command:
-                print('status  connect  lock  compare (signet)  broadcast (signet)  poweroff', flush=True)
+                print(menu, flush=True)
         except EOFError:
             return
         except (ValueError, OSError) as error:

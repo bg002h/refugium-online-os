@@ -10,10 +10,11 @@ The first target is x86-64 Linux with QEMU, OVMF firmware and a text console. Fr
 scripts/run .work/refugium-online-os.img .work/instance
 ```
 
-The launcher creates private firmware variables and two persistent sparse disks. The signet disk is 8 GiB. The mainnet disk defaults to 1536 GiB of logical capacity and grows as blocks are stored. An unpruned archive needs real backing space for the chain and future growth. For short VM tests, `--mainnet-size-gib 8` sets the size of a **new** disk. Existing disks retain their contents and size. All three nodes start at genesis on an empty instance. Add `--gui` for a window.
+The launcher creates private firmware variables and two persistent sparse disks. The signet disk is 8 GiB. The mainnet disk defaults to 1536 GiB of logical capacity and grows as blocks are stored. An unpruned archive needs real backing space for the chain and future growth. For short VM tests, `--mainnet-size-gib 8` sets the size of a **new** disk. Existing disks retain their contents and size. All three nodes start at genesis on an empty instance. Add `--gui` to open the guest’s live status screen. It shows chain heights and block times, satellite reception, free disk space and outbound traffic policy. Press Enter for the command console and type `screen` to return.
 
 | Command | Result |
 | --- | --- |
+| `screen` | Opens the live status screen. |
 | `status` | Shows Tor state, each node’s chain height and peers, satellite input activity and block transfer status. |
 | `connect` | Allows the fixed Bitcoin and Blockstream paths through Tor. Bootstrap and initial sync take time. |
 | `compare` | Reads Blockstream’s signet tip and compares hashes at the lower of the local and explorer heights. A partial sync can agree at that earlier height. |

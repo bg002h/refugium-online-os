@@ -127,8 +127,11 @@ class Mainnet:
             chain, peers = await asyncio.gather(query('getblockchaininfo'),query('getconnectioncount'))
             if chain is None:
                 return {'issue':'RPC unavailable'}
-            status = {k:chain[k] for k in ('chain','blocks','headers','bestblockhash','pruned')}
+            status = {k:chain[k] for k in ('chain','blocks','headers','bestblockhash','pruned','time')}
             status['peers'] = peers
+            if name == 'satellite':
+                status['multicast'], status['partial_blocks'] = await asyncio.gather(
+                    query('getudpmulticastinfo'), query('getchunkstats'))
             return status
         archive, satellite = await asyncio.gather(*(info(name) for name in ROLES))
         state = {'archive':archive,'satellite':satellite,'radio_input':bool(self.radio and self.radio.poll() is None)}

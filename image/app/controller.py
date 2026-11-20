@@ -233,9 +233,13 @@ class Appliance:
                     break
                 if proc.returncode == 0:
                     data = json.loads(raw)
-                    status[key] = ({k:data[k] for k in ('chain','blocks','headers','initialblockdownload')}
+                    status[key] = ({k:data[k] for k in ('chain','blocks','headers','initialblockdownload','time')}
                                    if key=='node' else data)
         status['mainnet'] = await self.mainnet.status()
+        status['disk_free_bytes'] = {}
+        for name, mount, mounted in [('mainnet', '/mainnet', self.mainnet.mounted), ('signet', '/data', self.mount)]:
+            if mounted:
+                status['disk_free_bytes'][name] = shutil.disk_usage(mount).free
         return status
 
     async def explorer(self, msg):
