@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import socket
 import struct
 import subprocess
@@ -87,11 +88,51 @@ class Appliance:
         self.mount = True
         os.chown('/data', 0, 0)
         os.chmod('/data', 0o755)
+        try:
+            self.initialize_chain()
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            self.issue = 'Could not initialize local signet storage: ' + str(error)
+            return
         directory('/data/bitcoin', BITCOIN, BITCOIN, 0o700)
         directory('/data/tor', TOR, TOR, 0o700)
         argv = ['/usr/local/bin/bitcoind', '-datadir=/data/bitcoin', '-conf=/etc/refugium-online/bitcoin.conf']
         argv.extend('-connect='+p for p in PEERS.read_text().splitlines())
         self.node = self.daemon(argv, BITCOIN, BITCOIN, 'core')
+
+    def initialize_chain(self):
+        final = Path('/data/bitcoin')
+        if final.exists():
+            return
+        # A power cut may interrupt Core's first file creations. Publish a cleanly
+        # stopped genesis database in one rename before the normal node can connect.
+        staging = Path('/data/.refugium-initializing')
+        if staging.is_symlink():
+            raise ValueError('Invalid signet initialization directory')
+        if staging.exists():
+            shutil.rmtree(staging)
+        directory(staging, BITCOIN, BITCOIN, 0o700)
+        proc = self.daemon(['/usr/local/bin/bitcoind', '-datadir='+str(staging),
+                            '-conf=/etc/refugium-online/bitcoin.conf', '-networkactive=0'],
+                           BITCOIN, BITCOIN, 'initialize')
+        try:
+            run(*CLI, '-rpcwait', '-rpcwaittimeout=45', 'getblockchaininfo',
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=50)
+        finally:
+            proc.terminate()
+            try:
+                proc.wait(timeout=40)
+            except subprocess.TimeoutExpired:
+                kill_group(proc)
+                raise
+        if proc.returncode != 0:
+            raise ValueError('Initial Core shutdown failed')
+        os.sync()
+        staging.rename(final)
+        fd = os.open('/data', os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
 
     @staticmethod
     def daemon(args, uid, gid, name):
@@ -156,6 +197,8 @@ class Appliance:
                 stages = [s.decode(errors='replace').strip().split('Bootstrapped ',1)[1].split(' (',1)[0]
                           for s in log if b'Bootstrapped ' in s]
             status['tor_bootstrap'] = stages[-1] if stages else 'starting'
+        if self.node and self.node.poll() is not None:
+            status['issue'] = f'Local signet node stopped (exit {self.node.returncode}). Check its data disk.'
         if self.node and self.node.poll() is None:
             for method, key in [('getblockchaininfo','node'),('getconnectioncount','peers')]:
                 proc = await asyncio.create_subprocess_exec(*CLI, method, stdout=asyncio.subprocess.PIPE,

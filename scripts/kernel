@@ -4,11 +4,13 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 inputs=$(realpath "${1:-$repo/.work/inputs}")
 out=$(realpath -m "${2:-$repo/.work/kernel}")
 mkdir -p "$out"
+[[ ! -e "$out/.config" ]] || { echo "Choose an empty kernel output directory." >&2; exit 2; }
+unset KBUILD_BUILD_VERSION
 (cd "$inputs" && sha256sum --quiet -c <(grep ' linux-' "$repo/image/inputs.sha256"))
 src=$(mktemp -d "$(dirname "$out")/linux.XXXXXXXX")
 tar -xf "$inputs/linux-6.12.118.tar.xz" -C "$src" --strip-components=1
 cp "$repo/image/kernel.config" "$out/.config"
-export KBUILD_BUILD_VERSION=1 KBUILD_BUILD_USER=refugium KBUILD_BUILD_HOST=builder KBUILD_BUILD_TIMESTAMP='2026-11-19 00:00:00 UTC'
+export KBUILD_BUILD_USER=refugium KBUILD_BUILD_HOST=builder KBUILD_BUILD_TIMESTAMP='2026-11-19 00:00:00 UTC'
 make -C "$src" O="$out" RUSTC=false olddefconfig
 for property in CONFIG_NF_TABLES_NETDEV=y CONFIG_NETFILTER_EGRESS=y CONFIG_NFT_CT=y CONFIG_VIRTIO_NET=y '# CONFIG_IPV6 is not set' '# CONFIG_PACKET is not set' '# CONFIG_IP_PNP is not set'; do
     grep -Fxq "$property" "$out/.config"

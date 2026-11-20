@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise a dedicated, freshly booted VM via its serial socket and external capture."""
 import argparse
+from collections import deque
 import json
 from pathlib import Path
 import socket
@@ -17,6 +18,7 @@ class Console:
         self.sock.connect(str(path))
         self.sock.settimeout(1)
         self.buffer = b''
+        self.recent = deque(maxlen=12)
 
     def send(self, cmd):
         self.sock.sendall((cmd+'\n').encode())
@@ -26,6 +28,7 @@ class Console:
         while time.monotonic()<deadline:
             while b'\n' in self.buffer:
                 line,self.buffer = self.buffer.split(b'\n',1)
+                self.recent.append(line[-300:].decode(errors='replace').strip())
                 try:
                     result = json.loads(line.strip())
                     if isinstance(result,dict):
@@ -51,10 +54,19 @@ class Console:
             try:
                 status = self.call('status', timeout=5)
                 if 'mode' in status and 'node' in status:
+                    if status['mode'] == 'locked':
+                        # Firmware or early storage setup may queue multiple status
+                        # lines. A side-effect-free refusal delimits their replies.
+                        self.send('compare')
+                        while time.monotonic() < deadline:
+                            reply = self.receive(timeout=10)
+                            if reply.get('error') == 'Outbound traffic is locked':
+                                return status
+                        raise TimeoutError('No locked startup response delimiter')
                     return status
             except TimeoutError:
                 pass
-        raise TimeoutError('Guest console and local Core RPC did not become ready')
+        raise TimeoutError('Guest console and local Core RPC did not become ready. Recent lines: ' + repr(list(self.recent)))
 
     def close(self):
         self.sock.close()
