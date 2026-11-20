@@ -1,0 +1,6 @@
+.work/
+__pycache__/
+*.pyc
+*.img
+*.qcow2
+*.bundle

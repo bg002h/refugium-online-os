@@ -1,0 +1,87 @@
+"""Synthetic-network test init. This file is added only to a disposable test initramfs."""
+import ctypes
+import errno
+import json
+import os
+from pathlib import Path
+import socket
+import subprocess
+import sys
+import time
+
+sys.path.insert(0, '/usr/lib/refugium-online')
+import firewall
+from settings import BITCOIN, FILTER, OPERATOR, TOR, WEB
+
+
+def try_connect(host, port):
+    with socket.socket() as s:
+        s.settimeout(.2)
+        return s.connect_ex((host,port)) == 0
+
+
+def probe(uid, phase):
+    local=[port for port in (9050,9051,38332) if try_connect('127.0.0.1',port)]
+    # The QEMU test backend has restrict=on. These frames cannot reach any real host.
+    # Distinct destination suffixes let the external capture identify each attempt.
+    base={'locked':30,'enabled':20,'relocked':40}[phase]
+    addr='93.184.216.'+str(base+uid-TOR if uid else base-1)
+    try_connect(addr, 443)
+    try_connect(addr,80)
+    with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as udp:
+        try:
+            udp.sendto(b'fixture',(addr,53))
+        except PermissionError:
+            pass
+    print(json.dumps(local))
+
+
+def main():
+    dev=next(p.name for p in Path('/sys/class/net').iterdir() if p.name!='lo')
+    ip=lambda *args:subprocess.run(['ip',*args],check=True)
+    firewall.install(dev,False)
+    ip('link','set','lo','up')
+    ip('addr','add','10.0.2.15/24','dev',dev)
+    ip('link','set','dev',dev,'up')
+    ip('route','add','default','via','10.0.2.2','dev',dev)
+    ports=[]
+    for port in (9050,9051,38332):
+        srv=socket.socket()
+        srv.bind(('127.0.0.1',port))
+        srv.listen(50)
+        ports.append(srv)
+    disabled_families=[]
+    for family in (socket.AF_INET6,socket.AF_PACKET):
+        try:
+            s=socket.socket(family,socket.SOCK_DGRAM)
+        except OSError as e:
+            if e.errno==errno.EAFNOSUPPORT:
+                disabled_families.append(family.name)
+        else:
+            s.close()
+    assert len(disabled_families)==2, disabled_families
+    for phase in ('locked','enabled','relocked'):
+        firewall.install(dev,phase=='enabled')
+        for uid in (0,TOR,FILTER,BITCOIN,WEB,OPERATOR):
+            raw=subprocess.check_output([sys.executable,'-B',__file__,'--probe',str(uid),phase],
+                                        user=uid,group=uid,extra_groups=[],stderr=subprocess.STDOUT)
+            allowed=set(json.loads(raw))
+            expected={38332} if uid in (0,BITCOIN,WEB) else set()
+            if phase=='enabled' and uid==FILTER:
+                expected.update((9050,9051))
+            assert allowed==expected,(phase,uid,allowed,expected)
+    print('EGRESS-PASS '+json.dumps({'uid_count':6,'phases':3,'unavailable':disabled_families}),flush=True)
+
+
+if __name__=='__main__':
+    if '--probe' in sys.argv:
+        probe(int(sys.argv[2]),sys.argv[3])
+    else:
+        try:
+            main()
+        except Exception:
+            import traceback
+            traceback.print_exc()
+        finally:
+            os.sync()
+            ctypes.CDLL(None).reboot(0x4321FEDC)

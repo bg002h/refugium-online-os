@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo=$(cd "$(dirname "$0")/.." && pwd)
+out=$(realpath -m "${1:-$repo/.work/inputs}")
+mkdir -p "$out/debs"
+cd "$out"
+fetch() {
+    if [[ ! -f $1 ]]; then
+        curl -qfsSL --proto '=https' "$2" -o "$1.part"
+        mv "$1.part" "$1"
+    fi
+}
+base=ubuntu-base-24.04.5-base-amd64.tar.gz
+core=bitcoin-31.1-x86_64-linux-gnu.tar.gz
+fetch "$base" "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/$base"
+fetch "$core" "https://bitcoincore.org/bin/bitcoin-core-31.1/$core"
+fetch linux-6.12.118.tar.xz https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.12.118.tar.xz
+sha256sum --quiet -c "$repo/image/inputs.sha256"
+if (cd debs && sha256sum --quiet -c "$repo/image/packages.sha256") 2>/dev/null; then exit 0; fi
+aptroot=$(mktemp -d "$out/apt.XXXXXXXX")
+tar --no-same-owner -xf "$base" -C "$aptroot"
+cat > "$aptroot/etc/apt/sources.list.d/ubuntu.sources" <<'EOF'
+Types: deb
+URIs: https://snapshot.ubuntu.com/ubuntu/20261118T000000Z/
+Suites: noble noble-updates noble-security
+Components: main universe restricted multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+EOF
+mkdir -p "$aptroot/etc/ssl/certs"
+bwrap --unshare-user --uid 0 --gid 0 --bind "$aptroot" / --proc /proc --dev /dev \
+  --ro-bind /etc/resolv.conf /etc/resolv.conf --ro-bind /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt \
+  --setenv HOME /root --setenv LC_ALL C --chdir / -- sh -ec '
+    apt-get -o APT::Sandbox::User=root -o Acquire::Check-Valid-Until=false update
+    apt-get -o APT::Sandbox::User=root --download-only --no-install-recommends -y install tor nftables iproute2 python3-minimal python3 curl ca-certificates systemd-boot-efi e2fsprogs util-linux'
+cp "$aptroot"/var/cache/apt/archives/*.deb "$out/debs/"
+(cd "$out/debs" && sha256sum --quiet -c "$repo/image/packages.sha256")

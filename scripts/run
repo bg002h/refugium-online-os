@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Boot the signet appliance in a separate QEMU instance."""
+import argparse
+import fcntl
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+
+from hostgate import exclusive, wait_monitor
+
+
+def firmware():
+    for directory, code, variables in (
+        ('/usr/share/edk2/x64','OVMF_CODE.4m.fd','OVMF_VARS.4m.fd'),
+        ('/usr/share/OVMF','OVMF_CODE_4M.fd','OVMF_VARS_4M.fd'),
+    ):
+        pair = Path(directory)/code, Path(directory)/variables
+        if all(p.is_file() for p in pair):
+            return pair
+    return None, None
+
+
+def disk(state):
+    target = state/'signet.ext4'
+    if not target.exists():
+        with tempfile.TemporaryDirectory(dir=state) as td:
+            new = Path(td)/'data'
+            with new.open('xb') as out:
+                out.truncate(8 * 1024**3)
+            subprocess.run(['mke2fs','-q','-t','ext4','-m','0','-L','RO_SIGNET',new], check=True)
+            os.link(new, target)
+    return target
+
+
+def drive(path):
+    # QEMU's comma-delimited option format doubles literal commas in filenames.
+    return str(path).replace(',', ',,')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('image', type=Path)
+    parser.add_argument('state', type=Path, help='private persistent instance directory')
+    parser.add_argument('--sealed', action='store_true', help='omit the network adapter for this boot')
+    parser.add_argument('--gui', action='store_true', help='show the guest console in a window')
+    parser.add_argument('--serial-socket', type=Path, help='bind a local Unix socket for console automation')
+    parser.add_argument('--capture', type=Path, help='save adapter frames to a new local pcap')
+    code, template = firmware()
+    parser.add_argument('--firmware-code', type=Path, default=code)
+    parser.add_argument('--firmware-vars', type=Path, default=template)
+    args = parser.parse_args()
+    image = args.image.resolve(strict=True)
+    if not args.firmware_code or not args.firmware_vars:
+        parser.error('Supply the matching OVMF CODE and VARS files')
+    if args.capture and (args.sealed or args.capture.exists()):
+        parser.error('Capture requires a new file and a network adapter')
+    os.umask(0o077)
+    state = args.state.resolve()
+    state.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if state.stat().st_uid != os.getuid() or state.stat().st_mode & 0o077:
+        parser.error('Use a private state directory owned by the current user')
+    with exclusive(state/'gate.lock'):
+        if args.capture and (state/'sealed').exists():
+            parser.error('This instance is sealed and has no adapter to capture')
+        lock = (state/'instance.lock').open('a')
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        variables = state/'vars.fd'
+        if not variables.exists():
+            with tempfile.TemporaryDirectory(dir=state) as td:
+                new = Path(td)/'vars.fd'
+                shutil.copyfile(args.firmware_vars, new)
+                os.link(new, variables)
+        chain = disk(state)
+        cmd = ['qemu-system-x86_64','-name','refugium-online-os','-machine','q35,accel=kvm:tcg',
+               '-m','2048','-smp','2','-nodefaults','-no-reboot','-boot','strict=on',
+               '-drive',f'if=pflash,format=raw,readonly=on,file={drive(args.firmware_code)}',
+               '-drive',f'if=pflash,format=raw,file={drive(variables)}',
+               '-device','qemu-xhci','-drive',f'if=none,id=os,format=raw,readonly=on,file={drive(image)}',
+               '-device','usb-storage,drive=os,bootindex=1',
+               '-drive',f'if=none,id=data,format=raw,file={drive(chain)}','-device','virtio-blk-pci,drive=data',
+               '-monitor','none','-sandbox','on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny']
+        if args.gui:
+            cmd += ['-device','virtio-vga','-device','usb-kbd','-display','gtk']
+        else:
+            cmd += ['-display','none']
+        if args.serial_socket:
+            cmd += ['-chardev',f'socket,id=console,path={drive(args.serial_socket.resolve())},server=on,wait=off',
+                    '-serial','chardev:console']
+        else:
+            cmd += ['-serial','stdio']
+        cmd.extend(['-qmp', f'unix:{drive(state/"monitor.sock")},server=on,wait=off'])
+        if args.sealed or (state/'sealed').exists():
+            cmd += ['-nic','none']
+        else:
+            # The host can remove the user-mode backend without cooperating with the guest.
+            cmd += ['-netdev','user,id=u,ipv6=off',
+                    '-netdev','hubport,id=outside,hubid=0,netdev=u',
+                    '-netdev','hubport,id=inside,hubid=0',
+                    '-device','virtio-net-pci,netdev=inside,id=wan,romfile=']
+            if args.capture:
+                cmd += ['-object',f'filter-dump,id=audit,netdev=u,maxlen=96,file={drive(args.capture.resolve())}']
+        # Keep the instance lock in QEMU too, including if its launcher exits unexpectedly.
+        fd = lock.fileno()
+        cmd += ['-add-fd', f'fd={fd},set=1,opaque=refugium-instance-lock']
+        proc = subprocess.Popen(cmd, pass_fds=(fd,))
+        try:
+            wait_monitor(state, proc)
+        except BaseException:
+            proc.terminate()
+            proc.wait()
+            raise
+    try:
+        return proc.wait()
+    except KeyboardInterrupt:
+        proc.terminate()
+        return proc.wait()
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

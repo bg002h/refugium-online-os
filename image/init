@@ -1,0 +1,18 @@
+#!/bin/sh
+# First userspace code. The kernel has no IP autoconfiguration or IPv6.
+set -eu
+export PATH=/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+mount -t devtmpfs devtmpfs /dev
+exec </dev/console >/dev/console 2>&1
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+ln -s /proc/self/fd /dev/fd
+ln -s /proc/self/fd/0 /dev/stdin
+ln -s /proc/self/fd/1 /dev/stdout
+ln -s /proc/self/fd/2 /dev/stderr
+mkdir -p /run /data /dev/pts
+mount -t tmpfs -o nodev,nosuid,mode=0755 tmpfs /run
+mount -t devpts devpts /dev/pts
+umask 077
+export PYTHONDONTWRITEBYTECODE=1
+exec /usr/bin/python3 -B /usr/lib/refugium-online/controller.py

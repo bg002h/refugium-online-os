@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Run the real kernel and root payload with a separate synthetic test init. QEMU has no WAN route.
+set -euo pipefail
+repo=$(cd "$(dirname "$0")/.." && pwd)
+image=$(realpath "$1")
+dir=$(realpath -m "$2")
+mkdir -m700 "$dir"
+mkdir -p "$dir/overlay/qa"
+cd "$dir"
+mcopy -i "$image@@1048576" ::/refugium/linux.efi kernel
+mcopy -i "$image@@1048576" ::/refugium/root.gz root.gz
+cp "$repo/tests/guest_egress.py" overlay/qa/
+sed 's|/usr/lib/refugium-online/controller.py|/qa/guest_egress.py|' "$repo/image/init" > overlay/qa/init
+chmod 0755 overlay/qa/init
+(cd overlay && find qa -print0 | cpio --quiet --null -o -H newc --owner=0:0 | gzip -n) >> root.gz
+timeout 90 qemu-system-x86_64 -machine q35,accel=kvm:tcg -m 1450 -smp 2 -nodefaults -display none \
+    -no-reboot -monitor none -serial file:serial.log -kernel kernel -initrd root.gz \
+    -append 'quiet rdinit=/qa/init console=ttyS0 panic=-1' \
+    -netdev user,id=test,ipv6=off,restrict=on -device virtio-net-pci,netdev=test,romfile= \
+    -object filter-dump,id=audit,netdev=test,maxlen=96,file=frames.pcap
+grep 'EGRESS-PASS' serial.log
+PYTHONDONTWRITEBYTECODE=1 python3 - "$repo/tests" <<'PY'
+import sys
+sys.path.insert(0,sys.argv[1])
+from vm_wire import packets
+seen=[]
+for f in packets('frames.pcap'):
+    if f[6:12]!=bytes.fromhex('525400123456') or f[12:14]==b'\x08\x06':
+        continue
+    assert f[12:14]==b'\x08\x00' and f[23]==6, f[:42].hex()
+    pos=14+(f[14]&15)*4
+    seen.append((tuple(f[30:34]),int.from_bytes(f[pos+2:pos+4],'big')))
+assert set(seen)=={((93,184,216,20),443)},seen
+print('PASS: only the Tor UID sent external IP frames, exclusively TCP to port 443')
+PY

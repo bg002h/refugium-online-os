@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""Remove the host NAT backend immediately and latch the cutoff across boots."""
+import argparse
+import os
+from pathlib import Path
+import sys
+
+from hostgate import arm, exclusive, seal
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('action', choices=['seal','arm'])
+parser.add_argument('state', type=Path)
+opts = parser.parse_args()
+os.umask(0o077)
+state = opts.state.resolve()
+state.mkdir(parents=True,exist_ok=True,mode=0o700)
+try:
+    with exclusive(state/'gate.lock'):
+        print(seal(state) if opts.action == 'seal' else arm(state))
+except (OSError, RuntimeError, ValueError) as error:
+    sys.exit(str(error))

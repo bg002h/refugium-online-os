@@ -1,0 +1,16 @@
+ClientOnly 1
+ClientUseIPv6 0
+ClientUseIPv4 1
+ReachableAddresses *:443
+SocksPort 127.0.0.1:9050
+SocksPort 127.0.0.1:9051
+SocksPolicy accept 127.0.0.1
+SocksPolicy reject *
+ControlPort 0
+DNSPort 0
+TransPort 0
+HTTPTunnelPort 0
+SafeLogging 1
+AvoidDiskWrites 1
+DataDirectory /data/tor
+Log notice stdout
