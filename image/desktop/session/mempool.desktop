@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=mempool.space
+Icon=/opt/refugium-desktop/icons/mempool.png
+Exec=/usr/lib/refugium-online/desktop/open mempool
+Terminal=false

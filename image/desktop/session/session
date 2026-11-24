@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+export PATH=/usr/local/bin:/usr/bin:/bin
+# A tiled viewer can advertise a portrait mode before X starts.
+xrandr --output Virtual-1 --mode 1920x1080 || :
+# Keep Ubuntu's bindings and themes and fit the wallet above the dock.
+config="$XDG_RUNTIME_DIR/openbox.xml"
+sed 's|<applications>|&<application class="mr-gui" type="normal"><maximized>yes</maximized></application>|' \
+    /etc/xdg/openbox/rc.xml > "$config"
+openbox --config-file "$config" &
+wm=$!
+if [ -n "${REFUGIUM_CLIPBOARD_PORT:-}" ]; then
+    socket="$XDG_RUNTIME_DIR/spice-vdagent.sock"
+    # Single local X seat. The virtual agent only carries text.
+    /usr/sbin/spice-vdagentd -x -X -f -u /dev/null -s "$REFUGIUM_CLIPBOARD_PORT" -S "$socket" &
+    /usr/bin/spice-vdagent -x -s "$REFUGIUM_CLIPBOARD_PORT" -S "$socket" &
+fi
+xsetroot -solid '#253646'
+xset s off
+# The operator's filename index lives in the writable /var overlay for this boot.
+updatedb || echo 'Could not build the locate index. Run updatedb to retry.' >&2
+tint2 -c /usr/lib/refugium-online/desktop/tint2rc &
+/usr/lib/refugium-online/desktop/open status &
+wait "$wm"

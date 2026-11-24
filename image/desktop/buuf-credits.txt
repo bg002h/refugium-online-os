@@ -1,0 +1,29 @@
+Buuf icons: two 64-pixel icons on the Refugium Online desktop
+(Node status and Terminal)
+
+Based on icons by Paul Davey aka Mattahan. All rights reserved.
+  Paul Davey: mailto:mattahan@gmail.com
+  Mattahan: http://mattahan.deviantart.com
+(c) Paul Davey, 2006
+
+Source: Buuf Icons for Plasma, maintained by phob1an, with modifications credited
+to Shirakawasuna, revision 9bd0a9e2f50d0abc3089751ef60e3a1a6f5c6b35:
+https://www.opencode.net/phob1an/buuf-icons-for-plasma/-/tree/9bd0a9e2f50d0abc3089751ef60e3a1a6f5c6b35
+Files used: utilities-system-monitor.png (shown as Node status) and
+utilities-terminal.png (shown as Terminal).
+
+Terms
+- The artist's notice (Buuf/Buuf.htm at that revision): "you are free to alter and
+  redistribute Buuf as you wish", with the credit above, and "You may NOT use any
+  Buuf icon commercially without my permission."
+  https://www.opencode.net/phob1an/buuf-icons-for-plasma/-/blob/9bd0a9e2f50d0abc3089751ef60e3a1a6f5c6b35/Buuf%20/Buuf.htm
+- The Plasma port names the Creative Commons Attribution-ShareAlike 3.0 Australia
+  licence (CC BY-SA 3.0 AU):
+  https://creativecommons.org/licenses/by-sa/3.0/au/
+  https://www.opencode.net/phob1an/buuf-icons-for-plasma/-/blob/9bd0a9e2f50d0abc3089751ef60e3a1a6f5c6b35/licenses
+
+Changes: the two PNGs are shown unchanged. XPM copies are derived from them for
+XTerm; those derived copies are shared under the same terms as the originals.
+
+Commercial use: these icons are included for non-commercial use. No commercial use
+of them is permitted without the artist's permission.

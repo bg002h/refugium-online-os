@@ -1,0 +1,67 @@
+--- a/src/udpnet.cpp
++++ b/src/udpnet.cpp
+@@ -385,8 +385,11 @@
+     std::map<std::pair<CService, int>, int> logical_idx_map;
+
+     for (auto& mcast_info : multicast_list) {
+-        udp_socks.push_back(socket(AF_INET6, SOCK_DGRAM, 0));
+-        assert(udp_socks.back());
++        udp_socks.push_back(socket(AF_INET, SOCK_DGRAM, 0));
++        if (udp_socks.back() < 0) {
++            LogPrintf("UDP: IPv4 multicast socket failed: %s\n", NetworkErrorString(errno));
++            return false;
++        }
+         mcast_info.fd = udp_socks.back();
+
+         int opt = 1;
+@@ -395,22 +398,15 @@
+             return false;
+         }
+
+-        opt = 0;
+-        if (setsockopt(udp_socks.back(), IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt)) != 0) {
+-            LogPrintf("UDP: setsockopt failed: %s\n", NetworkErrorString(errno));
+-            return false;
+-        }
+-
+         fcntl(udp_socks.back(), F_SETFL, fcntl(udp_socks.back(), F_GETFL) | O_NONBLOCK);
+
+         /* Bind socket to the multicast service UDP port for any IP address */
+         unsigned short multicast_port = mcast_info.port;
+
+-        struct sockaddr_in6 wildcard;
+-        memset(&wildcard, 0, sizeof(wildcard));
+-        wildcard.sin6_family = AF_INET6;
+-        memcpy(&wildcard.sin6_addr, &in6addr_any, sizeof(in6addr_any));
+-        wildcard.sin6_port = htons(multicast_port);
++        struct sockaddr_in wildcard{};
++        wildcard.sin_family = AF_INET;
++        wildcard.sin_addr.s_addr = htonl(INADDR_ANY);
++        wildcard.sin_port = htons(multicast_port);
+
+         if (bind(udp_socks.back(), (sockaddr*)&wildcard, sizeof(wildcard))) {
+             LogPrintf("UDP: bind failed: %s\n", NetworkErrorString(errno));
+@@ -852,7 +848,7 @@
+     /* We will place the incoming UDP message payload into `msg`. However, not
+      * necessarily the incoming payload will fill the entire `UDPMessage`
+      * structure. Hence, zero-initialize `msg` here. */
+-    struct sockaddr_in6 remoteaddr;
++    struct sockaddr_storage remoteaddr{};
+     socklen_t remoteaddrlen = sizeof(remoteaddr);
+
+     ssize_t res = recvfrom(fd, &msg, sizeof(msg), MSG_DONTWAIT, (sockaddr*)&remoteaddr, &remoteaddrlen);
+@@ -861,8 +857,12 @@
+         LogPrintf("UDP: Error reading from socket: %d (%s)!\n", err, NetworkErrorString(err));
+         return;
+     }
+-    assert(remoteaddrlen == sizeof(remoteaddr));
+-    CService c_remoteaddr(remoteaddr);
++    if (!((remoteaddr.ss_family == AF_INET && remoteaddrlen == sizeof(sockaddr_in)) ||
++          (remoteaddr.ss_family == AF_INET6 && remoteaddrlen == sizeof(sockaddr_in6))))
++        return;
++    CService c_remoteaddr;
++    if (!c_remoteaddr.SetSockAddr(reinterpret_cast<const sockaddr*>(&remoteaddr)))
++        return;
+
+     if (size_t(res) < sizeof(UDPMessageHeader) || size_t(res) >= sizeof(UDPMessage))
+         return;

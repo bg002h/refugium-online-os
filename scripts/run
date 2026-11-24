@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Boot the signet appliance in a separate QEMU instance."""
+"""Boot the three-node appliance in a separate QEMU instance."""
 import argparse
 import fcntl
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import tempfile
 
@@ -22,14 +23,15 @@ def firmware():
     return None, None
 
 
-def disk(state):
-    target = state/'signet.ext4'
+def disk(state, name, label, size):
+    target = state/name
     if not target.exists():
         with tempfile.TemporaryDirectory(dir=state) as td:
             new = Path(td)/'data'
             with new.open('xb') as out:
-                out.truncate(8 * 1024**3)
-            subprocess.run(['mke2fs','-q','-t','ext4','-m','0','-L','RO_SIGNET',new], check=True)
+                out.truncate(size * 1024**3)
+            usage = ['-T', 'largefile'] if label == 'RO_MAINNET' else []
+            subprocess.run(['mke2fs', '-q', '-t', 'ext4', '-m', '0', *usage, '-L', label, new], check=True)
             os.link(new, target)
     return target
 
@@ -45,12 +47,19 @@ def main():
     parser.add_argument('state', type=Path, help='private persistent instance directory')
     parser.add_argument('--sealed', action='store_true', help='omit the network adapter for this boot')
     parser.add_argument('--gui', action='store_true', help='show the guest console in a window')
+    parser.add_argument('--clipboard', action='store_true', help='share text both ways with the host desktop for this GUI session')
     parser.add_argument('--serial-socket', type=Path, help='bind a local Unix socket for console automation')
     parser.add_argument('--capture', type=Path, help='save adapter frames to a new local pcap')
+    parser.add_argument('--mainnet-size-gib', type=int, default=1536,
+                        help='logical size of a new sparse mainnet disk (default 1536 GiB)')
     code, template = firmware()
     parser.add_argument('--firmware-code', type=Path, default=code)
     parser.add_argument('--firmware-vars', type=Path, default=template)
     args = parser.parse_args()
+    if args.clipboard and not args.gui:
+        parser.error('--clipboard requires --gui')
+    if args.mainnet_size_gib < 8:
+        parser.error('Use at least 8 GiB for a new mainnet disk')
     image = args.image.resolve(strict=True)
     if not args.firmware_code or not args.firmware_vars:
         parser.error('Supply the matching OVMF CODE and VARS files')
@@ -72,17 +81,36 @@ def main():
                 new = Path(td)/'vars.fd'
                 shutil.copyfile(args.firmware_vars, new)
                 os.link(new, variables)
-        chain = disk(state)
+        chain = disk(state,'signet.ext4','RO_SIGNET',8)
+        archive = disk(state,'mainnet.ext4','RO_MAINNET',args.mainnet_size_gib)
+        incoming = state/'radio.in'
+        if not incoming.exists():
+            os.mkfifo(incoming, 0o600)
+        if not stat.S_ISFIFO(incoming.lstat().st_mode):
+            parser.error('radio.in must be a private FIFO')
+        outgoing = state/'radio.out'
+        if not outgoing.is_symlink():
+            outgoing.symlink_to('/dev/null')
+        if os.readlink(outgoing) != '/dev/null':
+            parser.error('The return side of the radio port must point to /dev/null')
         cmd = ['qemu-system-x86_64','-name','refugium-online-os','-machine','q35,accel=kvm:tcg',
-               '-m','2048','-smp','2','-nodefaults','-no-reboot','-boot','strict=on',
+               '-m','4096','-smp','4','-nodefaults','-no-reboot','-boot','strict=on',
                '-drive',f'if=pflash,format=raw,readonly=on,file={drive(args.firmware_code)}',
                '-drive',f'if=pflash,format=raw,file={drive(variables)}',
                '-device','qemu-xhci','-drive',f'if=none,id=os,format=raw,readonly=on,file={drive(image)}',
                '-device','usb-storage,drive=os,bootindex=1',
                '-drive',f'if=none,id=data,format=raw,file={drive(chain)}','-device','virtio-blk-pci,drive=data',
+               '-drive',f'if=none,id=main,format=raw,file={drive(archive)}','-device','virtio-blk-pci,drive=main',
+               '-device','virtio-serial-pci','-chardev',f'pipe,id=radio,path={drive(state/"radio")}',
+               '-device','virtserialport,chardev=radio,name=refugium.radio',
                '-monitor','none','-sandbox','on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny']
         if args.gui:
-            cmd += ['-device','virtio-vga','-device','usb-kbd','-display','gtk']
+            cmd += ['-device','virtio-vga,xres=1920,yres=1080','-device','usb-kbd',
+                    '-device','usb-tablet','-display','gtk,zoom-to-fit=on']
+            if args.clipboard:
+                cmd[-1] += ',clipboard=on'
+                cmd += ['-chardev','qemu-vdagent,id=clip,clipboard=on,mouse=off',
+                        '-device','virtserialport,chardev=clip,name=com.redhat.spice.0']
         else:
             cmd += ['-display','none']
         if args.serial_socket:
